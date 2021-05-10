@@ -4,11 +4,16 @@ from Read_dicom import Data_PD
 from Read_dicom import Data_CT
 import scipy
 
+shift = 1
+grad = 0.375
+order = 1
+#make_a_mesh(Data_CT, 'CT_final.ply')
+Data_rot_PD = Data_PD
+Data_rot_PD.data = scipy.ndimage.rotate(Data_PD.data, -grad, axes = (1, 0), order = order, prefilter = False)
+Data_rot_PD.data = scipy.ndimage.rotate(Data_PD.data, grad, axes = (2, 0), order = order, prefilter = False)
+Data_rot_PD.data = scipy.ndimage.shift(Data_PD.data, [shift, 0, 0], order = 5, prefilter = False)
 
-#make_a_mesh(Data_PD, 'PD_final.ply')
-Data_rot_CT = Data_CT
-Data_rot_CT.data = scipy.ndimage.rotate(Data_CT.data, 45, axes = (1, 0), reshape = True)
-make_a_mesh(Data_rot_CT, 'CT_rotated.ply')
+make_a_mesh(Data_rot_PD, '/Users/konstantinscheffold/Desktop/PD_shift_rot_ord{}_{}_{}.ply'.format(order, grad, shift))
 
 
 # verts, faces, normals, values = measure.marching_cubes(Data_not_rot_PD.data, gradient_direction='ascent', spacing = Data_not_rot_PD.spacing)
