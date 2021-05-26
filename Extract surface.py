@@ -1,14 +1,14 @@
 import numpy as np
-from Read_dicom import Data_not_rot_CT
-from Read_dicom import Data_not_rot_PD
+from Read_dicom import Data_CT
+from Read_dicom import Data_PD
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from skimage import measure
 
 # Use marching cubes to obtain the surface mesh of these ellipsoids
-verts, faces, normals, values = measure.marching_cubes(Data_not_rot_CT.data, 0)
-#vertsa, facesa, normalsa, valuesa = measure.marching_cubes(Data_not_rot_PD.data, 0)
+verts, faces, normals, values = measure.marching_cubes(Data_CT.data, 0)
+vertsa, facesa, normalsa, valuesa = measure.marching_cubes(Data_PD.data, 0)
 
 # Display resulting triangular mesh using Matplotlib. This can also be done
 # with mayavi (see skimage.measure.marching_cubes_lewiner docstring).
@@ -17,11 +17,11 @@ ax = fig.add_subplot(111, projection='3d')
 
 # Fancy indexing: `verts[faces]` to generate a collection of triangles
 mesh = Poly3DCollection(verts[faces])
-#mesha = Poly3DCollection(vertsa[facesa])
+mesha = Poly3DCollection(vertsa[facesa])
 mesh.set_edgecolor('k')
-#mesha.set_edgecolor('b')
+mesha.set_edgecolor('b')
 ax.add_collection3d(mesh)
-#ax.add_collection3d(mesha)
+ax.add_collection3d(mesha)
 
 ax.set_xlabel("x-axis: a = 6 per ellipsoid")
 ax.set_ylabel("y-axis: b = 10")
