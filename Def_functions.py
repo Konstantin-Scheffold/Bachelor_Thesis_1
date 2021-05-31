@@ -1,6 +1,7 @@
 import trimesh
 from skimage import measure
 import numpy as np
+from Read_dicom import Data_PD
 
 def make_a_mesh(vol, name, iso):
     cm_verts, cm_faces, cm_normals, _ = measure.marching_cubes(
@@ -22,7 +23,7 @@ def make_subsamples_3d(vol, size):
         for j in np.arange(size):
             subsamples_splitting[i][j] = np.array_split(subsamples_splitting[i][j], size, axis=2)
     # axis(Subsampled_data):[sub_x, sub_y, sub_z x, y, z]
-
+    print(np.shape(subsamples_splitting))
     for i in np.arange(size):
         for j in np.arange(size):
             for k in np.arange(size):
@@ -30,3 +31,7 @@ def make_subsamples_3d(vol, size):
 
     return subsamples_data
 
+
+# print(np.shape(Data_PD.data))
+# z = make_subsamples_3d(Data_PD.data, 2)
+# print(np.shape(z))
