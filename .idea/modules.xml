@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../pix2pix.pytorch/.idea/pix2pix.pytorch.iml" filepath="$PROJECT_DIR$/../pix2pix.pytorch/.idea/pix2pix.pytorch.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/testa.iml" filepath="$PROJECT_DIR$/.idea/testa.iml" />
     </modules>
   </component>

@@ -1,6 +1,7 @@
 import numpy as np
 import pydicom
 import os
+from Def_functions import make_a_mesh
 
 # Store volume data together with grid size and position in space
 
@@ -98,7 +99,6 @@ def read_dicom_stack(filepath):
     return VolumeData(data, spacing, position)
 
 # Daten einlesen
-
 
 Data_CT = read_dicom_stack('Data_BA_Thesis/NewExportsNov2020/CT')
 Data_PD = read_dicom_stack('Data_BA_Thesis/NewExportsNov2020/PD')
