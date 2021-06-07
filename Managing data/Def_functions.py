@@ -11,8 +11,11 @@ def make_a_mesh(vol, name, iso):
 
 def make_subsamples_3d(vol, size):
     subsamples_data = []
+    subsamples_spacing_calc = []
+    subsamples_spacing_out = []
+
     # axis(Subsampled_data):[x,y,z]
-    subsamples_splitting = np.array_split(vol, size, axis = 0)
+    subsamples_splitting = np.array_split(vol.data, size, axis = 0)
 
     # axis(Subsampled_data):[sub_x, x, y, z]
     for i in np.arange(size):
@@ -23,16 +26,20 @@ def make_subsamples_3d(vol, size):
         for j in np.arange(size):
             subsamples_splitting[i][j] = np.array_split(subsamples_splitting[i][j], size, axis=2)
 
-# axis(Subsampled_data):[sub_x, sub_y, sub_z x, y, z]
+    # put the different blogs in one List, because until here it is ordered by the 3 dimensions
     for i in np.arange(size):
         for j in np.arange(size):
             for k in np.arange(size):
                 subsamples_data.append(subsamples_splitting[i][j][k])
+                # calculate the position, of the sub_block with step size 1
+                subsamples_spacing_calc.append(np.asarray([i, j, k]))
+
+
+    # calculate the Spacing in absolute numbers, the blog size is given, by the shape of vol, divided by the size cubed
+    for i in range(size**3):
+        subsamples_spacing_out.append(subsamples_spacing_calc[i] * np.shape(vol.data) / size)
+
 
     subsamples_data = np.asarray(subsamples_data, dtype=object)
 
-    return subsamples_data
-
-# a = np.arange(364*308*308).reshape((364 , 308, 308))
-# a = make_subsamples_3d(a, 2)
-# print(np.shape(a))
+    return subsamples_data, subsamples_spacing_out
