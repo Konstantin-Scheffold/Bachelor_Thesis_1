@@ -53,7 +53,7 @@ class UNetUp(nn.Module):
 
 
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, in_channels=1, out_channels=3):
         super(GeneratorUNet, self).__init__()
 
         self.down1 = UNetDown(in_channels, 64, normalize=False)
@@ -129,5 +129,6 @@ class Discriminator(nn.Module):
 
     def forward(self, img_A, img_B):
         # Concatenate image and condition image by channels to produce input
+
         img_input = torch.cat((img_A, img_B), 1)
         return self.model(img_input)

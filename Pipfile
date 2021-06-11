@@ -13,6 +13,8 @@ scipy = "*"
 trimesh = "*"
 measure = "*"
 scikit-image = "*"
+pillow = "*"
+pandas = "*"
 
 [dev-packages]
 
