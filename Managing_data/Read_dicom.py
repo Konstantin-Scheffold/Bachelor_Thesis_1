@@ -100,5 +100,5 @@ def read_dicom_stack(filepath):
 
 # Daten einlesen
 
-Data_PD = read_dicom_stack('/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Data_BA_Thesis/NewExportsNov2020/PD')
-Data_CT = read_dicom_stack('/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Data_BA_Thesis/NewExportsNov2020/CT')
+Data_PD = read_dicom_stack('/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Data_BA_Thesis/Unified_Grid/PD')
+Data_CT = read_dicom_stack('/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Data_BA_Thesis/Unified_Grid/CT')

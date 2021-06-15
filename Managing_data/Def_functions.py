@@ -15,16 +15,16 @@ def make_subsamples_3d(vol, size):
     subsamples_spacing_out = []
 
     # axis(Subsampled_data):[x,y,z]
-    subsamples_splitting = np.array_split(vol.data, size, axis = 0)
+    subsamples_splitting = np.split(vol.data, size, axis = 0)
 
     # axis(Subsampled_data):[sub_x, x, y, z]
     for i in np.arange(size):
-        subsamples_splitting[i] = np.array_split(subsamples_splitting[i], size, axis=1)
+        subsamples_splitting[i] = np.split(subsamples_splitting[i], size, axis=1)
 
     # axis(Subsampled_data):[sub_x, sub_y, sub_z x, y, z]
     for i in np.arange(size):
         for j in np.arange(size):
-            subsamples_splitting[i][j] = np.array_split(subsamples_splitting[i][j], size, axis=2)
+            subsamples_splitting[i][j] = np.split(subsamples_splitting[i][j], size, axis=2)
 
     # put the different blogs in one List, because until here it is ordered by the 3 dimensions
     for i in np.arange(size):
@@ -40,6 +40,6 @@ def make_subsamples_3d(vol, size):
         subsamples_spacing_out.append(subsamples_spacing_calc[i] * np.shape(vol.data) / size)
 
 
-    subsamples_data = np.asarray(subsamples_data, dtype=object)
+    subsamples_data = np.asarray(subsamples_data)
 
     return subsamples_data, subsamples_spacing_out

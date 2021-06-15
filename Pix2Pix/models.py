@@ -1,6 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torchvision.transforms as transforms
+
 
 
 def weights_init_normal(m):
@@ -20,9 +22,9 @@ def weights_init_normal(m):
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
-        layers = [nn.Conv2d(in_size, out_size, 4, 2, 1, bias=False)]
+        layers = [nn.Conv3d(in_size, out_size, 3, stride = 2, padding = 2, bias=False)]
         if normalize:
-            layers.append(nn.InstanceNorm2d(out_size))
+            layers.append(nn.InstanceNorm3d(out_size))
         layers.append(nn.LeakyReLU(0.2))
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -36,8 +38,8 @@ class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
         layers = [
-            nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
-            nn.InstanceNorm2d(out_size),
+            nn.ConvTranspose3d(in_size, out_size, 3, stride = 2, padding = 2, bias=False),
+            nn.InstanceNorm3d(out_size),
             nn.ReLU(inplace=True),
         ]
         if dropout:
@@ -47,6 +49,8 @@ class UNetUp(nn.Module):
 
     def forward(self, x, skip_input):
         x = self.model(x)
+        print(x.size())
+        print(skip_input.size())
         x = torch.cat((x, skip_input), 1)
 
         return x
@@ -75,8 +79,8 @@ class GeneratorUNet(nn.Module):
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
-            nn.ZeroPad2d((1, 0, 1, 0)),
-            nn.Conv2d(128, out_channels, 4, padding=1),
+            # was bringt das ? nn.functional.pad( , (1, 0, 1, 0, 1)),
+            nn.Conv3d(128, out_channels, 4, padding=1),
             nn.Tanh(),
         )
 
@@ -112,9 +116,9 @@ class Discriminator(nn.Module):
 
         def discriminator_block(in_filters, out_filters, normalization=True):
             """Returns downsampling layers of each discriminator block"""
-            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
+            layers = [nn.Conv3d(in_filters, out_filters, 3, stride=2, padding=1)]
             if normalization:
-                layers.append(nn.InstanceNorm2d(out_filters))
+                layers.append(nn.InstanceNorm3d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
@@ -123,12 +127,20 @@ class Discriminator(nn.Module):
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             *discriminator_block(256, 512),
-            nn.ZeroPad2d((1, 0, 1, 0)),
-            nn.Conv2d(512, 1, 4, padding=1, bias=False)
+            # warum braucht man das ? nn.ZeroPad3d((1, 0, 1, 0, 1)),
+
+
+            nn.Conv3d(512, 1, 4, padding=1, bias=False)
+        )
+        self.premodel = nn.Sequential(
+            nn.Conv3d(1, 16, 3, stride = 3, padding = 1),
+            nn.Conv3d(16, 1, 3, stride = 1, padding = 1)
         )
 
-    def forward(self, img_A, img_B):
-        # Concatenate image and condition image by channels to produce input
+    def forward(self, img_CT, img_PD):
+        # # Concatenate image and condition image by channels to produce input
+        #
+        # img_CT = transforms.functional.resize(self.premodel(img_CT), size = img_PD.shape())
 
-        img_input = torch.cat((img_A, img_B), 1)
+        img_input = torch.cat((img_CT, img_PD), 1)
         return self.model(img_input)

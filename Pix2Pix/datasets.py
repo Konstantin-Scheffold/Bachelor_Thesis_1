@@ -9,9 +9,6 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms
 
-transforms_ = [
-    transforms.ToTensor()
-]
 
 class ImageDataset(Dataset):
     def __init__(self, root, transforms_=None, mode="train"):
@@ -30,10 +27,10 @@ class ImageDataset(Dataset):
         dicom_sample = np.load(img_path, allow_pickle=True)
         dicom_sample_CT, dicom_sample_PD = np.array(list(dicom_sample[0]), dtype= float), np.array(list(dicom_sample[1]), dtype=float)
 
-        dicom_sample_CT = self.transform(dicom_sample_CT)
-        dicom_sample_PD = self.transform(dicom_sample_PD)
-        print(np.shape(dicom_sample_PD))
-        return {"CT": torch.squeeze(dicom_sample_CT), "PD": torch.squeeze(dicom_sample_PD)}
+        dicom_sample_CT = self.transform(dicom_sample_CT).permute(1,2,0).unsqueeze(0)
+        dicom_sample_PD = self.transform(dicom_sample_PD).permute(1,2,0).unsqueeze(0)
+
+        return {"CT": dicom_sample_CT, "PD": dicom_sample_PD}
 
     def __len__(self):
         return len(self.list_files)
