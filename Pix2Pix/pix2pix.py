@@ -30,7 +30,7 @@ parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rat
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
-parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
+parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
 parser.add_argument("--img_height", type=int, default=33, help="size of image height")
 parser.add_argument("--img_width", type=int, default=28, help="size of image width")
 parser.add_argument("--img_depth", type=int, default=27, help="size of image depth")
@@ -90,13 +90,13 @@ transforms_ = [
 ]
 
 dataloader = DataLoader(
-    ImageDataset("/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Dicom_Data_edited/train", transforms_=transforms_),
+    ImageDataset("../Data/Dicom_Data_edited/train", transforms_=transforms_),
     batch_size=opt.batch_size,
     shuffle=True,
 )
 
 val_dataloader = DataLoader(
-    ImageDataset("/Users/konstantinscheffold/PycharmProjects/Bachelor_Thesis/Data/Dicom_Data_edited/val", transforms_=transforms_, mode="val"),
+    ImageDataset("../Data/Dicom_Data_edited/val", transforms_=transforms_, mode="val"),
     batch_size=opt.batch_size,
     shuffle=True,
 )
@@ -137,13 +137,15 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # ------------------
 
         optimizer_G.zero_grad()
-
         # GAN loss
-        fake_B = generator(real_CT)
-        pred_fake = discriminator(fake_B, real_CT)
+        fake_PD = generator(real_CT)
+        pred_fake = discriminator(fake_PD, real_CT)
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
-        loss_pixel = criterion_pixelwise(fake_B, real_PD)
+        a, b, c = fake_PD.size()[2]-real_CT.size()[2], fake_PD.size()[3]-real_CT.size()[3], fake_PD.size()[4]-real_CT.size()[4]
+        real_CT = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(real_CT)
+        print(fake_PD.size(), real_CT.size())
+        loss_pixel = criterion_pixelwise(fake_PD, real_CT)
 
         # Total loss
         loss_G = loss_GAN + lambda_pixel * loss_pixel
@@ -163,7 +165,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_real = criterion_GAN(pred_real, valid)
 
         # Fake loss
-        pred_fake = discriminator(fake_B.detach(), real_CT)
+        pred_fake = discriminator(fake_PD.detach(), real_CT)
         loss_fake = criterion_GAN(pred_fake, fake)
 
         # Total loss

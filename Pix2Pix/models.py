@@ -35,10 +35,10 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0):
+    def __init__(self, in_size, out_size, dropout=0.0, kernel_size = 3, stride = 2, padding = 2):
         super(UNetUp, self).__init__()
         layers = [
-            nn.ConvTranspose3d(in_size, out_size, 3, stride = 2, padding = 2, bias=False),
+            nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
             nn.InstanceNorm3d(out_size),
             nn.ReLU(inplace=True),
         ]
@@ -49,8 +49,9 @@ class UNetUp(nn.Module):
 
     def forward(self, x, skip_input):
         x = self.model(x)
-        print(x.size())
-        print(skip_input.size())
+        a, b, c = skip_input.size()[2]-x.size()[2], skip_input.size()[3]-x.size()[3], skip_input.size()[4]-x.size()[4]
+        x = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(x)
+
         x = torch.cat((x, skip_input), 1)
 
         return x
@@ -72,6 +73,7 @@ class GeneratorUNet(nn.Module):
         self.up1 = UNetUp(512, 512, dropout=0.5)
         self.up2 = UNetUp(1024, 512, dropout=0.5)
         self.up3 = UNetUp(1024, 512, dropout=0.5)
+       # self.pad3 = nn.ConstantPad3d((1,0,1,0,1,0),0)
         self.up4 = UNetUp(1024, 512, dropout=0.5)
         self.up5 = UNetUp(1024, 256)
         self.up6 = UNetUp(512, 128)
@@ -80,7 +82,7 @@ class GeneratorUNet(nn.Module):
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
             # was bringt das ? nn.functional.pad( , (1, 0, 1, 0, 1)),
-            nn.Conv3d(128, out_channels, 4, padding=1),
+            nn.Conv3d(128, 1, 4, padding=1),
             nn.Tanh(),
         )
 
@@ -94,6 +96,7 @@ class GeneratorUNet(nn.Module):
         d6 = self.down6(d5)
         d7 = self.down7(d6)
         d8 = self.down8(d7)
+
         u1 = self.up1(d8, d7)
         u2 = self.up2(u1, d6)
         u3 = self.up3(u2, d5)
@@ -123,7 +126,7 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(in_channels * 2, 64, normalization=False),
+            *discriminator_block(2, 64, normalization=False),
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             *discriminator_block(256, 512),
@@ -137,10 +140,12 @@ class Discriminator(nn.Module):
             nn.Conv3d(16, 1, 3, stride = 1, padding = 1)
         )
 
-    def forward(self, img_CT, img_PD):
+    def forward(self, img_PD, img_CT):
         # # Concatenate image and condition image by channels to produce input
         #
         # img_CT = transforms.functional.resize(self.premodel(img_CT), size = img_PD.shape())
 
-        img_input = torch.cat((img_CT, img_PD), 1)
+        a, b, c = img_PD.size()[2]-img_CT.size()[2], img_PD.size()[3]-img_CT.size()[3], img_PD.size()[4]-img_CT.size()[4]
+        img_CT = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(img_CT)
+        img_input = torch.cat((img_PD, img_CT), 1)
         return self.model(img_input)
