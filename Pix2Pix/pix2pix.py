@@ -26,19 +26,20 @@ parser.add_argument("--epoch", type=int, default=0, help="epoch to start trainin
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
 parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-parser.add_argument("--img_height", type=int, default=33, help="size of image height")
-parser.add_argument("--img_width", type=int, default=28, help="size of image width")
-parser.add_argument("--img_depth", type=int, default=27, help="size of image depth")
+parser.add_argument("--img_height", type=int, default=36, help="size of image height")
+parser.add_argument("--img_width", type=int, default=30, help="size of image width")
+parser.add_argument("--img_depth", type=int, default=30, help="size of image depth")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument(
     "--sample_interval", type=int, default=500, help="interval between sampling of images from generators"
 )
-parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
+parser.add_argument("--checkpoint_interval", type=int, default=20
+                    , help="interval between model checkpoints")
 opt = parser.parse_args()
 print(opt)
 
@@ -143,9 +144,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
         a, b, c = fake_PD.size()[2]-real_CT.size()[2], fake_PD.size()[3]-real_CT.size()[3], fake_PD.size()[4]-real_CT.size()[4]
-        real_CT = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(real_CT)
-        print(fake_PD.size(), real_CT.size())
-        loss_pixel = criterion_pixelwise(fake_PD, real_CT)
+        real_PD = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(real_PD)
+
+        loss_pixel = criterion_pixelwise(fake_PD, real_PD)
 
         # Total loss
         loss_G = loss_GAN + lambda_pixel * loss_pixel
@@ -201,10 +202,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         )
 
         # If at sample interval save image
-        if batches_done % opt.sample_interval == 0:
-            sample_images(batches_done)
+    if epoch % opt.checkpoint_interval == 0:#batches_done % opt.sample_interval == 0:
+        sample_images(batches_done)
 
-    if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
+    if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
         torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
         torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))

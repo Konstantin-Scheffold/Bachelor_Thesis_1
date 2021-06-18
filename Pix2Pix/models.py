@@ -117,7 +117,7 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True):
+        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2):
             """Returns downsampling layers of each discriminator block"""
             layers = [nn.Conv3d(in_filters, out_filters, 3, stride=2, padding=1)]
             if normalization:
@@ -127,8 +127,8 @@ class Discriminator(nn.Module):
 
         self.model = nn.Sequential(
             *discriminator_block(2, 64, normalization=False),
-            *discriminator_block(64, 128),
-            *discriminator_block(128, 256),
+            *discriminator_block(64, 128, stride = 1),
+            *discriminator_block(128, 256, stride = 1),
             *discriminator_block(256, 512),
             # warum braucht man das ? nn.ZeroPad3d((1, 0, 1, 0, 1)),
 
