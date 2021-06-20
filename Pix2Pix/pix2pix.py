@@ -6,6 +6,7 @@ import itertools
 import time
 import datetime
 import sys
+import matplotlib.pyplot as plt
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -23,7 +24,8 @@ import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=200
+                    , help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
@@ -35,7 +37,7 @@ parser.add_argument("--img_height", type=int, default=36, help="size of image he
 parser.add_argument("--img_width", type=int, default=30, help="size of image width")
 parser.add_argument("--img_depth", type=int, default=30, help="size of image depth")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
-parser.add_argument(
+parser.add_argument(,
     "--sample_interval", type=int, default=500, help="interval between sampling of images from generators"
 )
 parser.add_argument("--checkpoint_interval", type=int, default=20
@@ -117,12 +119,25 @@ def sample_images(batches_done):
 
 
 # ----------
+#  Training documentation
+# ----------
+loss_steps_G = []
+loss_steps_D = []
+loss_steps_pixel = []
+loss_steps_GAN = []
+
+# ----------
 #  Training
 # ----------
 
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
+    loss_batch_G = []
+    loss_batch_D = []
+    loss_batch_GAN = []
+    loss_batch_pixel = []
+
     for i, batch in enumerate(dataloader):
 
         # Model inputs
@@ -138,16 +153,20 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # ------------------
 
         optimizer_G.zero_grad()
+
         # GAN loss
         fake_PD = generator(real_CT)
         pred_fake = discriminator(fake_PD, real_CT)
         loss_GAN = criterion_GAN(pred_fake, valid)
-        # Pixel-wise loss
+        loss_batch_GAN.append(loss_GAN.item())
 
+        # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_PD, real_PD)
+        loss_batch_pixel.append(loss_pixel.item())
 
         # Total loss
-        loss_G = loss_GAN + lambda_pixel * loss_pixel
+        loss_G = loss_GAN + loss_pixel #  lambda_pixel * loss_pixel
+        loss_batch_G.append(loss_G.item())
 
         loss_G.backward()
 
@@ -166,12 +185,13 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Fake loss
         pred_fake = discriminator(fake_PD.detach(), real_CT)
-#        a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
-#        pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
+        #        a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
+        #        pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
         loss_fake = criterion_GAN(pred_fake, fake)
 
         # Total loss
         loss_D = 0.5 * (loss_real + loss_fake)
+        loss_batch_D.append(loss_D.item())
 
         loss_D.backward()
         optimizer_D.step()
@@ -202,6 +222,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
+    loss_steps_D.append(np.mean(loss_batch_D))
+    loss_steps_G.append(np.mean(loss_batch_G))
+    loss_steps_GAN.append(np.mean(loss_batch_GAN))
+    loss_steps_pixel.append(np.mean(loss_batch_pixel))
+
+
         # If at sample interval save image
     if epoch % opt.checkpoint_interval == 0:#batches_done % opt.sample_interval == 0:
         sample_images(batches_done)
@@ -210,3 +236,15 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Save model checkpoints
         torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
         torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+
+
+plt.title("Validation Accuracy vs. Number of Training Epochs")
+plt.xlabel("Training Epochs")
+plt.ylabel("Validation Accuracy")
+plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_D,label="Disciminator")
+plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_G,label="Generator")
+plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_GAN,label="GAN")
+plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_pixel,label="pixelwise loss")
+plt.xticks(np.arange(1, opt.n_epochs+1, 1.0))
+plt.legend()
+plt.show()

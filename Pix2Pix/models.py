@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms
 import torchvision.transforms as transforms
 
-
+interpolation_mode = 'trilinear'
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -79,7 +79,7 @@ class GeneratorUNet(nn.Module):
         self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Upsample(size=(36,30,30), mode = 'trilinear'),
+            nn.Upsample(size=(36,30,30), mode = interpolation_mode),
             # was bringt das ? nn.functional.pad( , (1, 0, 1, 0, 1)),
             nn.Conv3d(128, 1, kernel_size = 3, stride=1, padding=1),
 #            nn.Conv3d(1, 16, kernel_size=3, stride=1, padding=1),
@@ -137,7 +137,7 @@ class Discriminator(nn.Module):
     def forward(self, img_PD, img_CT):
         # Concatenate image and condition image by channels to produce input
         if img_PD.size() != img_CT.size():
-            img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode = 'trilinear')
+            img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode = interpolation_mode)
         # im moment wird hochgeskaliert ist das nicht doofer als runter?
         img_input = torch.cat((img_PD, img_CT), 1)
         return self.model(img_input)
