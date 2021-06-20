@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torchvision.transforms
 import torchvision.transforms as transforms
 
 
@@ -20,9 +21,9 @@ def weights_init_normal(m):
 
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, stride = 2):
         super(UNetDown, self).__init__()
-        layers = [nn.Conv3d(in_size, out_size, 3, stride = 2, padding = 2, bias=False)]
+        layers = [nn.Conv3d(in_size, out_size, 3, stride = stride, padding = 1, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
         layers.append(nn.LeakyReLU(0.2))
@@ -35,7 +36,7 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, kernel_size = 3, stride = 2, padding = 2):
+    def __init__(self, in_size, out_size, dropout=0.0, kernel_size = 3, stride = 2, padding = 1):
         super(UNetUp, self).__init__()
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
@@ -49,12 +50,11 @@ class UNetUp(nn.Module):
 
     def forward(self, x, skip_input):
         x = self.model(x)
-        a, b, c = skip_input.size()[2]-x.size()[2], skip_input.size()[3]-x.size()[3], skip_input.size()[4]-x.size()[4]
-        x = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(x)
+        #a, b, c = skip_input.size()[2]-x.size()[2], skip_input.size()[3]-x.size()[3], skip_input.size()[4]-x.size()[4]
+        #x = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(x)
 
-        x = torch.cat((x, skip_input), 1)
+        return torch.cat((x, skip_input), 1)
 
-        return x
 
 
 class GeneratorUNet(nn.Module):
@@ -67,22 +67,23 @@ class GeneratorUNet(nn.Module):
         self.down4 = UNetDown(256, 512, dropout=0.5)
         self.down5 = UNetDown(512, 512, dropout=0.5)
         self.down6 = UNetDown(512, 512, dropout=0.5)
-        self.down7 = UNetDown(512, 512, dropout=0.5)
-        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5)
+        self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
+        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
 
-        self.up1 = UNetUp(512, 512, dropout=0.5)
-        self.up2 = UNetUp(1024, 512, dropout=0.5)
-        self.up3 = UNetUp(1024, 512, dropout=0.5)
-       # self.pad3 = nn.ConstantPad3d((1,0,1,0,1,0),0)
-        self.up4 = UNetUp(1024, 512, dropout=0.5)
-        self.up5 = UNetUp(1024, 256)
-        self.up6 = UNetUp(512, 128)
-        self.up7 = UNetUp(256, 64)
+        self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
+        self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
+        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
+        self.up4 = UNetUp(1024, 512, kernel_size=4, stride=2, padding=1)
+        self.up5 = UNetUp(1024, 256, kernel_size=(4,4,3), stride=2, padding=1)
+        self.up6 = UNetUp(512, 128, kernel_size=(4,3,4), stride=2, padding=1)
+        self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(size=(36,30,30), mode = 'trilinear'),
             # was bringt das ? nn.functional.pad( , (1, 0, 1, 0, 1)),
-            nn.Conv3d(128, 1, 4, padding=1),
+            nn.Conv3d(128, 1, kernel_size = 3, stride=1, padding=1),
+#            nn.Conv3d(1, 16, kernel_size=3, stride=1, padding=1),
+#            nn.Conv3d(16, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
@@ -130,22 +131,13 @@ class Discriminator(nn.Module):
             *discriminator_block(64, 128, stride = 1),
             *discriminator_block(128, 256, stride = 1),
             *discriminator_block(256, 512),
-            # warum braucht man das ? nn.ZeroPad3d((1, 0, 1, 0, 1)),
-
-
-            nn.Conv3d(512, 1, 4, padding=1, bias=False)
-        )
-        self.premodel = nn.Sequential(
-            nn.Conv3d(1, 16, 3, stride = 3, padding = 1),
-            nn.Conv3d(16, 1, 3, stride = 1, padding = 1)
+             nn.Conv3d(512, 1, kernel_size=4, padding=(3,2,2), stride=1, bias=False)
         )
 
     def forward(self, img_PD, img_CT):
-        # # Concatenate image and condition image by channels to produce input
-        #
-        # img_CT = transforms.functional.resize(self.premodel(img_CT), size = img_PD.shape())
-
-        a, b, c = img_PD.size()[2]-img_CT.size()[2], img_PD.size()[3]-img_CT.size()[3], img_PD.size()[4]-img_CT.size()[4]
-        img_CT = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(img_CT)
+        # Concatenate image and condition image by channels to produce input
+        if img_PD.size() != img_CT.size():
+            img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode = 'trilinear')
+        # im moment wird hochgeskaliert ist das nicht doofer als runter?
         img_input = torch.cat((img_PD, img_CT), 1)
         return self.model(img_input)

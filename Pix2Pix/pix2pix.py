@@ -56,7 +56,7 @@ criterion_pixelwise = torch.nn.L1Loss()
 lambda_pixel = 100
 
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4, opt.img_depth // 2 ** 4)
+patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
 
 # Initialize generator and discriminator
 generator = GeneratorUNet()
@@ -143,8 +143,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         pred_fake = discriminator(fake_PD, real_CT)
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
-        a, b, c = fake_PD.size()[2]-real_CT.size()[2], fake_PD.size()[3]-real_CT.size()[3], fake_PD.size()[4]-real_CT.size()[4]
-        real_PD = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(real_PD)
 
         loss_pixel = criterion_pixelwise(fake_PD, real_PD)
 
@@ -162,11 +160,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Real loss
+
         pred_real = discriminator(real_PD, real_CT)
         loss_real = criterion_GAN(pred_real, valid)
 
         # Fake loss
         pred_fake = discriminator(fake_PD.detach(), real_CT)
+#        a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
+#        pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
         loss_fake = criterion_GAN(pred_fake, fake)
 
         # Total loss
