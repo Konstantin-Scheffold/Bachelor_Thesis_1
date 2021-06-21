@@ -37,7 +37,7 @@ parser.add_argument("--img_height", type=int, default=36, help="size of image he
 parser.add_argument("--img_width", type=int, default=30, help="size of image width")
 parser.add_argument("--img_depth", type=int, default=30, help="size of image depth")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
-parser.add_argument(,
+parser.add_argument(
     "--sample_interval", type=int, default=500, help="interval between sampling of images from generators"
 )
 parser.add_argument("--checkpoint_interval", type=int, default=20
@@ -85,11 +85,10 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1,
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 # Configure dataloaders
-## mean is taken from: CT_mean = np.mean(Data_CT.data[30:-30, 30:-30, 30:-30])
 transforms_ = [
  # braucht man das überhaupt?   transforms.Resize((opt.img_height, opt.img_width, opt.img_depth), InterpolationMode.BICUBIC),
     transforms.ToTensor(),
-    transforms.Normalize(0.5, 0.5) #sind die Werte in ordnung oder nicht etwas ranom 0.5
+    transforms.Normalize(0.5, 0.5) #sind die Werte in ordnung oder nicht etwas random 0.5
 ]
 
 dataloader = DataLoader(
@@ -125,6 +124,13 @@ loss_steps_G = []
 loss_steps_D = []
 loss_steps_pixel = []
 loss_steps_GAN = []
+
+
+
+plt.title("Validation Accuracy vs. Number of Training Epochs")
+plt.xlabel("Training Epochs")
+plt.ylabel("Validation Accuracy")
+
 
 # ----------
 #  Training
@@ -201,14 +207,22 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # --------------
 
         # Determine approximate time left
+        time_left_accumulate = []
         batches_done = epoch * len(dataloader) + i
         batches_left = opt.n_epochs * len(dataloader) - batches_done
-        time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
+        time_left_accumulate.append(datetime.timedelta(seconds=batches_left * (time.time() - prev_time)))
         prev_time = time.time()
+
+
+        if i%20 == 0:
+
+            time_left = np.mean(time_left_accumulate)
+            time_left_accumulate = []
+
 
         # Print log
         sys.stdout.write(
-            "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s"
+            "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] ETA: %s"
             % (
                 epoch,
                 opt.n_epochs,
@@ -216,19 +230,27 @@ for epoch in range(opt.epoch, opt.n_epochs):
                 len(dataloader),
                 loss_D.item(),
                 loss_G.item(),
-                loss_pixel.item(),
-                loss_GAN.item(),
+                #loss_pixel.item(),
+                #loss_GAN.item(),
                 time_left,
             )
         )
 
+    #plot the loss curves
     loss_steps_D.append(np.mean(loss_batch_D))
     loss_steps_G.append(np.mean(loss_batch_G))
     loss_steps_GAN.append(np.mean(loss_batch_GAN))
     loss_steps_pixel.append(np.mean(loss_batch_pixel))
 
+    plt.plot(range(opt.epoch, epoch+1), loss_steps_D,label="Disciminator")
+    plt.plot(range(opt.epoch, epoch+1), loss_steps_G,label="Generator")
+    plt.plot(range(opt.epoch, epoch+1), loss_steps_GAN,label="GAN")
+    plt.plot(range(opt.epoch, epoch+1), loss_steps_pixel,label="pixelwise loss")
+    plt.xticks(np.arange(1, epoch+1, 1.0))
+    plt.legend()
+    plt.show()
 
-        # If at sample interval save image
+    # If at sample interval save image
     if epoch % opt.checkpoint_interval == 0:#batches_done % opt.sample_interval == 0:
         sample_images(batches_done)
 
@@ -237,14 +259,3 @@ for epoch in range(opt.epoch, opt.n_epochs):
         torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
         torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
 
-
-plt.title("Validation Accuracy vs. Number of Training Epochs")
-plt.xlabel("Training Epochs")
-plt.ylabel("Validation Accuracy")
-plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_D,label="Disciminator")
-plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_G,label="Generator")
-plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_GAN,label="GAN")
-plt.plot(range(opt.epoch, opt.n_epochs), loss_steps_pixel,label="pixelwise loss")
-plt.xticks(np.arange(1, opt.n_epochs+1, 1.0))
-plt.legend()
-plt.show()
