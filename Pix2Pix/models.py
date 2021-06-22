@@ -36,7 +36,7 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, kernel_size = 3, stride = 2, padding = 1):
+    def __init__(self, in_size, out_size, dropout=0.0, kernel_size=3, stride=2, padding=1):
         super(UNetUp, self).__init__()
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
@@ -50,9 +50,6 @@ class UNetUp(nn.Module):
 
     def forward(self, x, skip_input):
         x = self.model(x)
-        #a, b, c = skip_input.size()[2]-x.size()[2], skip_input.size()[3]-x.size()[3], skip_input.size()[4]-x.size()[4]
-        #x = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(x)
-
         return torch.cat((x, skip_input), 1)
 
 
@@ -79,11 +76,7 @@ class GeneratorUNet(nn.Module):
         self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Upsample(size=(36,30,30), mode = interpolation_mode),
-            # was bringt das ? nn.functional.pad( , (1, 0, 1, 0, 1)),
             nn.Conv3d(128, 1, kernel_size = 3, stride=1, padding=1),
-#            nn.Conv3d(1, 16, kernel_size=3, stride=1, padding=1),
-#            nn.Conv3d(16, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
@@ -105,8 +98,9 @@ class GeneratorUNet(nn.Module):
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
         u7 = self.up7(u6, d1)
+        u8 = nn.functional.interpolate(u7, size=(36,30,30), mode=interpolation_mode)
 
-        return self.final(u7)
+        return self.final(u8)
 
 
 ##############################
@@ -138,6 +132,5 @@ class Discriminator(nn.Module):
         # Concatenate image and condition image by channels to produce input
         if img_PD.size() != img_CT.size():
             img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode = interpolation_mode)
-        # im moment wird hochgeskaliert ist das nicht doofer als runter?
         img_input = torch.cat((img_PD, img_CT), 1)
         return self.model(img_input)

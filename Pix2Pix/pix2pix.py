@@ -24,11 +24,11 @@ import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=200
+parser.add_argument("--n_epochs", type=int, default=25
                     , help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
+parser.add_argument("--lr", type=float, default=0.000001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
@@ -55,7 +55,7 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Loss weight of L1 pixel-wise loss between translated image and real image
-lambda_pixel = 100
+lambda_pixel = 1.5 * 10**-4
 
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
@@ -86,9 +86,8 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 # Configure dataloaders
 transforms_ = [
- # braucht man das überhaupt?   transforms.Resize((opt.img_height, opt.img_width, opt.img_depth), InterpolationMode.BICUBIC),
     transforms.ToTensor(),
-    transforms.Normalize(0.5, 0.5) #sind die Werte in ordnung oder nicht etwas random 0.5
+    transforms.Normalize(0,1)
 ]
 
 dataloader = DataLoader(
@@ -105,32 +104,33 @@ val_dataloader = DataLoader(
 
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+#= torch.cuda.HalfTensor if cuda else torch.FloatTensor
 
-
-def sample_images(batches_done):
+def sample_images(imgs, batches_done):
     """Saves a generated sample from the validation set"""
-    imgs = next(iter(val_dataloader))
-    real_A = Variable(imgs["CT"].type(Tensor))
-    real_B = Variable(imgs["PD"].type(Tensor))
+    real_A = imgs["CT"].type(Tensor)
+    real_B = imgs["PD"].type(Tensor)
     fake_B = generator(real_A)
-    sub_data_CT_PD = np.array([real_A, real_B,fake_B], dtype = object)
+    sub_data_CT_PD = np.array([real_A, real_B, fake_B], dtype = object)
     np.save("images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
 
 
 # ----------
 #  Training documentation
 # ----------
+loss_batch_G = []
+loss_batch_D = []
+loss_batch_GAN = []
+loss_batch_pixel = []
+
 loss_steps_G = []
 loss_steps_D = []
 loss_steps_pixel = []
 loss_steps_GAN = []
 
-
-
 plt.title("Validation Accuracy vs. Number of Training Epochs")
 plt.xlabel("Training Epochs")
 plt.ylabel("Validation Accuracy")
-
 
 # ----------
 #  Training
@@ -139,11 +139,6 @@ plt.ylabel("Validation Accuracy")
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
-    loss_batch_G = []
-    loss_batch_D = []
-    loss_batch_GAN = []
-    loss_batch_pixel = []
-
     for i, batch in enumerate(dataloader):
 
         # Model inputs
@@ -168,10 +163,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_PD, real_PD)
-        loss_batch_pixel.append(loss_pixel.item())
+        loss_batch_pixel.append(lambda_pixel * loss_pixel.item())
 
         # Total loss
-        loss_G = loss_GAN + loss_pixel #  lambda_pixel * loss_pixel
+        loss_G = loss_GAN + lambda_pixel * loss_pixel
         loss_batch_G.append(loss_G.item())
 
         loss_G.backward()
@@ -191,8 +186,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Fake loss
         pred_fake = discriminator(fake_PD.detach(), real_CT)
-        #        a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
-        #        pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
+        # a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
+        # pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
         loss_fake = criterion_GAN(pred_fake, fake)
 
         # Total loss
@@ -213,9 +208,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         time_left_accumulate.append(datetime.timedelta(seconds=batches_left * (time.time() - prev_time)))
         prev_time = time.time()
 
-
         if i%20 == 0:
-
             time_left = np.mean(time_left_accumulate)
             time_left_accumulate = []
 
@@ -235,24 +228,29 @@ for epoch in range(opt.epoch, opt.n_epochs):
                 time_left,
             )
         )
+        if i%20 ==0:
+            #plot the loss curves
+            loss_steps_D.append(np.mean(loss_batch_D))
+            loss_steps_G.append(np.mean(loss_batch_G))
+            loss_steps_GAN.append(np.mean(loss_batch_GAN))
+            loss_steps_pixel.append(np.mean(loss_batch_pixel))
+            loss_batch_G = []
+            loss_batch_D = []
+            loss_batch_GAN = []
+            loss_batch_pixel = []
 
-    #plot the loss curves
-    loss_steps_D.append(np.mean(loss_batch_D))
-    loss_steps_G.append(np.mean(loss_batch_G))
-    loss_steps_GAN.append(np.mean(loss_batch_GAN))
-    loss_steps_pixel.append(np.mean(loss_batch_pixel))
-
-    plt.plot(range(opt.epoch, epoch+1), loss_steps_D,label="Disciminator")
-    plt.plot(range(opt.epoch, epoch+1), loss_steps_G,label="Generator")
-    plt.plot(range(opt.epoch, epoch+1), loss_steps_GAN,label="GAN")
-    plt.plot(range(opt.epoch, epoch+1), loss_steps_pixel,label="pixelwise loss")
-    plt.xticks(np.arange(1, epoch+1, 1.0))
-    plt.legend()
-    plt.show()
+            plt.plot(range(len(loss_steps_D)), loss_steps_D,label="Disciminator")
+            plt.plot(range(len(loss_steps_G)), loss_steps_G,label="Generator")
+            plt.plot(range(len(loss_steps_GAN)), loss_steps_GAN,label="GAN")
+            plt.plot(range(len(loss_steps_pixel)), loss_steps_pixel,label="pixelwise loss")
+            plt.xticks(np.arange(1, len(loss_steps_D)+1, 1.0))
+            plt.legend()
+            plt.show()
 
     # If at sample interval save image
-    if epoch % opt.checkpoint_interval == 0:#batches_done % opt.sample_interval == 0:
-        sample_images(batches_done)
+    if epoch %opt.checkpoint_interval == 0:
+        imgs = next(iter(val_dataloader))
+        sample_images(imgs, batches_done)
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
