@@ -28,7 +28,7 @@ parser.add_argument("--n_epochs", type=int, default=25
                     , help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.000001, help="adam: learning rate")
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
@@ -122,11 +122,19 @@ loss_batch_G = []
 loss_batch_D = []
 loss_batch_GAN = []
 loss_batch_pixel = []
-
 loss_steps_G = []
 loss_steps_D = []
 loss_steps_pixel = []
 loss_steps_GAN = []
+
+loss_batch_G_val = []
+loss_batch_D_val = []
+loss_batch_GAN_val = []
+loss_batch_pixel_val = []
+loss_steps_G_val = []
+loss_steps_D_val = []
+loss_steps_pixel_val = []
+loss_steps_GAN_val = []
 
 plt.title("Validation Accuracy vs. Number of Training Epochs")
 plt.xlabel("Training Epochs")
@@ -186,8 +194,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Fake loss
         pred_fake = discriminator(fake_PD.detach(), real_CT)
-        # a, b, c = fake.size()[2]-pred_fake.size()[2], fake.size()[3]-pred_fake.size()[3], fake.size()[4]-pred_fake.size()[4]
-        # pred_fake = nn.ConstantPad3d((c, 0, b, 0, a, 0), 0)(pred_fake)
         loss_fake = criterion_GAN(pred_fake, fake)
 
         # Total loss
@@ -196,6 +202,45 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         loss_D.backward()
         optimizer_D.step()
+
+        # --------------
+        # Cross validation
+        # --------------
+        val_imgs = next(iter(val_dataloader))
+        # Model inputs
+        real_CT_val = val_imgs["CT"].type(Tensor)
+        real_PD_val = val_imgs["PD"].type(Tensor)
+        # Adversarial ground truths
+        valid_val = Variable(Tensor(np.ones((real_CT_val.size(0), *patch))), requires_grad=False)
+        fake_val = Variable(Tensor(np.zeros((real_CT_val.size(0), *patch))), requires_grad=False)
+        # ------------------
+        #  Generators validation
+        # ------------------
+        # GAN loss
+        fake_PD_val = generator(real_CT_val)
+        pred_fake_val = discriminator(fake_PD_val, real_CT_val)
+        loss_GAN_val = criterion_GAN(pred_fake_val, valid_val)
+        loss_batch_GAN.append(loss_GAN_val.item())
+        # Pixel-wise loss
+        loss_pixel_val = criterion_pixelwise(fake_PD_val, real_PD_val)
+        loss_batch_pixel_val.append(lambda_pixel * loss_pixel_val.item())
+        # Total loss
+        loss_G_val = loss_GAN_val + lambda_pixel * loss_pixel_val
+        loss_batch_G_val.append(loss_G_val.item())
+
+        # ---------------------
+        #  Discriminator validation
+        # ---------------------
+
+        # Real loss
+        pred_real_val = discriminator(real_PD_val, real_CT_val)
+        loss_real_val = criterion_GAN(pred_real_val, valid_val)
+        # Fake loss
+        pred_fake_val = discriminator(fake_PD_val.detach(), real_CT_val)
+        loss_fake_val = criterion_GAN(pred_fake_val, fake_val)
+        # Total loss
+        loss_D_val = 0.5 * (loss_real_val + loss_fake_val)
+        loss_batch_D_val.append(loss_D_val.item())
 
         # --------------
         #  Log Progress
@@ -239,15 +284,23 @@ for epoch in range(opt.epoch, opt.n_epochs):
             loss_batch_GAN = []
             loss_batch_pixel = []
 
-            plt.plot(range(len(loss_steps_D)), loss_steps_D,label="Disciminator")
-            plt.plot(range(len(loss_steps_G)), loss_steps_G,label="Generator")
-            plt.plot(range(len(loss_steps_GAN)), loss_steps_GAN,label="GAN")
-            plt.plot(range(len(loss_steps_pixel)), loss_steps_pixel,label="pixelwise loss")
-            plt.xticks(np.arange(1, len(loss_steps_D)+1, 1.0))
+            #line1.set_xdata(range(len(loss_steps_D)))
+            #line1.set_ydata(loss_steps_D)
+
+            plt.plot(range(len(loss_steps_D)), loss_steps_D, 'g-', label="Disciminator")
+            plt.plot(range(len(loss_steps_G)), loss_steps_G, 'b-',label="Generator")
+            plt.plot(range(len(loss_steps_GAN)), loss_steps_GAN, 'r-',label="GAN")
+            plt.plot(range(len(loss_steps_pixel)), loss_steps_pixel, 'c-',label="pixelwise loss val")
+            plt.plot(range(len(loss_steps_D_val)), loss_steps_D_val, 'g--',label="Disciminator val")
+            plt.plot(range(len(loss_steps_G_val)), loss_steps_G_val,'b--',label="Generator val")
+            plt.plot(range(len(loss_steps_GAN_val)), loss_steps_GAN_val, 'r--',label="GAN val")
+            plt.plot(range(len(loss_steps_pixel_val)), loss_steps_pixel_val, 'c--',label="pixelwise loss val")
+            plt.xticks(np.arange(1, len(loss_steps_D)+1, int(np.log10(i+1)+1)))
             plt.legend()
             plt.show()
 
-    # If at sample interval save image
+
+            # If at sample interval save image
     if epoch %opt.checkpoint_interval == 0:
         imgs = next(iter(val_dataloader))
         sample_images(imgs, batches_done)

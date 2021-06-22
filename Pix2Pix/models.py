@@ -62,21 +62,21 @@ class GeneratorUNet(nn.Module):
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
-        self.down5 = UNetDown(512, 512, dropout=0.5)
-        self.down6 = UNetDown(512, 512, dropout=0.5)
-        self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
-        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
+        self.down5 = UNetDown(512, 512, dropout=0.5, normalize=False, stride=2)
+        #self.down6 = UNetDown(512, 512, dropout=0.5)
+        #self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
+        #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
 
-        self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
-        self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
-        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
-        self.up4 = UNetUp(1024, 512, kernel_size=4, stride=2, padding=1)
+        #self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
+        #self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
+        #self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
+        self.up4 = UNetUp(512, 512, kernel_size=4, stride=2, padding=1)
         self.up5 = UNetUp(1024, 256, kernel_size=(4,4,3), stride=2, padding=1)
         self.up6 = UNetUp(512, 128, kernel_size=(4,3,4), stride=2, padding=1)
         self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Conv3d(128, 1, kernel_size = 3, stride=1, padding=1),
+            nn.Conv3d(128, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
@@ -87,14 +87,14 @@ class GeneratorUNet(nn.Module):
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
-        d6 = self.down6(d5)
-        d7 = self.down7(d6)
-        d8 = self.down8(d7)
+        #d6 = self.down6(d5)
+        #d7 = self.down7(d6)
+        #d8 = self.down8(d7)
 
-        u1 = self.up1(d8, d7)
-        u2 = self.up2(u1, d6)
-        u3 = self.up3(u2, d5)
-        u4 = self.up4(u3, d4)
+        #u1 = self.up1(d8, d7)
+        #u2 = self.up2(u1, d6)
+        #u3 = self.up3(u2, d5)
+        u4 = self.up4(d5, d4)
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
         u7 = self.up7(u6, d1)
