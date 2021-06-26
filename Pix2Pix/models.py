@@ -9,16 +9,15 @@ interpolation_mode = 'trilinear'
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+        torch.nn.init.normal_(m.type(torch.cuda.FloatTensor).weight.data, 0.0, 0.02)
     elif classname.find("BatchNorm2d") != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+        torch.nn.init.normal_(m.type(torch.cuda.FloatTensor).weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.type(torch.cuda.FloatTensor).bias.data, 0.0)
 
 
 ##############################
 #           U-NET
 ##############################
-
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, stride = 2):
@@ -41,7 +40,7 @@ class UNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
             nn.InstanceNorm3d(out_size),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2), #nn.ReLU(inplace=True),
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -62,15 +61,15 @@ class GeneratorUNet(nn.Module):
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
-        self.down5 = UNetDown(512, 512, dropout=0.5, normalize=False, stride=2)
-        #self.down6 = UNetDown(512, 512, dropout=0.5)
-        #self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
-        #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
+        self.down5 = UNetDown(512, 512, dropout=0.5)#, normalize=False, stride=2)
+        self.down6 = UNetDown(512, 512, dropout=0.5)#, normalize=False, stride=2)
+        self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
+        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
 
-        #self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
-        #self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
-        #self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
-        self.up4 = UNetUp(512, 512, kernel_size=4, stride=2, padding=1)
+        self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
+        self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
+        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
+        self.up4 = UNetUp(1024, 512, kernel_size=4, stride=2, padding=1)
         self.up5 = UNetUp(1024, 256, kernel_size=(4,4,3), stride=2, padding=1)
         self.up6 = UNetUp(512, 128, kernel_size=(4,3,4), stride=2, padding=1)
         self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
@@ -87,20 +86,21 @@ class GeneratorUNet(nn.Module):
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
-        #d6 = self.down6(d5)
-        #d7 = self.down7(d6)
-        #d8 = self.down8(d7)
+        d6 = self.down6(d5)
+        d7 = self.down7(d6)
+        d8 = self.down8(d7)
 
-        #u1 = self.up1(d8, d7)
-        #u2 = self.up2(u1, d6)
-        #u3 = self.up3(u2, d5)
-        u4 = self.up4(d5, d4)
+        u1 = self.up1(d8, d7)
+        u2 = self.up2(u1, d6)
+        u3 = self.up3(u2, d5)
+
+        u4 = self.up4(u3, d4)
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
         u7 = self.up7(u6, d1)
         u8 = nn.functional.interpolate(u7, size=(36,30,30), mode=interpolation_mode)
 
-        return self.final(u8)
+        return 4 * self.final(u8)   # 4*,weil input in dem Bereich
 
 
 ##############################
@@ -125,7 +125,8 @@ class Discriminator(nn.Module):
             *discriminator_block(64, 128, stride = 1),
             *discriminator_block(128, 256, stride = 1),
             *discriminator_block(256, 512),
-             nn.Conv3d(512, 1, kernel_size=4, padding=(3,2,2), stride=1, bias=False)
+            nn.Conv3d(512, 1, kernel_size=4, padding=(3,2,2), stride=1, bias=False),
+            nn.Sigmoid()
         )
 
     def forward(self, img_PD, img_CT):
@@ -133,4 +134,6 @@ class Discriminator(nn.Module):
         if img_PD.size() != img_CT.size():
             img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode = interpolation_mode)
         img_input = torch.cat((img_PD, img_CT), 1)
-        return self.model(img_input)
+        #noise = torch.normal(0, 0.1, list(img_input.size()) , device=torch.device('cuda'), requires_grad=True)
+        output = self.model(img_input)#+noise)
+        return output

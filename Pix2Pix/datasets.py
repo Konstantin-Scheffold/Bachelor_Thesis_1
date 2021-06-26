@@ -16,9 +16,6 @@ class ImageDataset(Dataset):
         self.root = root
         self.list_files = os.listdir(self.root)
 
-        # self.files = sorted(glob.glob(os.path.join(root, mode) + "/*.*"))
-        # if mode == "train":
-        #     self.files.extend(sorted(glob.glob(os.path.join(root, "test") + "/*.*")))
 
     def __getitem__(self, index):
         img_file = self.list_files[index]

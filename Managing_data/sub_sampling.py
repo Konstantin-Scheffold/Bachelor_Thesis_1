@@ -25,6 +25,9 @@ Data_PD.data = Data_PD.data[:-a, :-b, :-c]
 Data_CT.data = Data_CT.data[:-d, :-e, :-f]
 print('g')
 
+Data_PD.data = (Data_PD.data-np.mean(Data_PD.data))/np.std(Data_PD.data)
+Data_CT.data = (Data_CT.data-np.mean(Data_CT.data))/np.std(Data_CT.data)
+
 sub_data_PD, sub_position_PD = make_subsamples_3d(Data_PD, size)
 print('h')
 sub_data_CT, sub_position_CT = make_subsamples_3d(Data_CT, size)
@@ -35,16 +38,17 @@ print(np.shape(sub_data_CT))
 #make_a_mesh(Data_CT, r'C:\Users\Konra\OneDrive\Desktop\CT_control.ply', 40000)
 #make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\PD_control.ply', 6000)
 
- #%%
+
 
 #make the sub sample meshes
 
-for i in range(int(size**3 * 2/3)):
-    # save a specific subsample
-    sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
-    np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\train\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
-
-for i in range(int(size**3 * 2/3), size**3):
-    # save a specific subsample
-    sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
-    np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\val\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
+for i in range(int(size**3)):
+    a = np.random.uniform(0,1)
+    if a<0.75:
+        # save a specific subsample for training
+        sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
+        np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\train\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
+    else:
+        # save a specific subsample for validation
+        sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
+        np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\val\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
