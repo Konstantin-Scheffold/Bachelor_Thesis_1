@@ -93,7 +93,6 @@ class GeneratorUNet(nn.Module):
         u1 = self.up1(d8, d7)
         u2 = self.up2(u1, d6)
         u3 = self.up3(u2, d5)
-
         u4 = self.up4(u3, d4)
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
@@ -112,20 +111,20 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2):
+        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2, kernel_size=5):
             """Returns downsampling layers of each discriminator block"""
-            layers = [nn.Conv3d(in_filters, out_filters, 3, stride=2, padding=1)]
+            layers = [nn.Conv3d(in_filters, out_filters, kernel_size=kernel_size, stride=stride, padding=1)]
             if normalization:
                 layers.append(nn.InstanceNorm3d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(2, 64, normalization=False),
-            *discriminator_block(64, 128, stride = 1),
-            *discriminator_block(128, 256, stride = 1),
-            *discriminator_block(256, 512),
-            nn.Conv3d(512, 1, kernel_size=4, padding=(3,2,2), stride=1, bias=False),
+            *discriminator_block(2, 64, stride=2,  normalization=False),
+            *discriminator_block(64, 128, stride = 2),
+            #*discriminator_block(128, 256, stride = 1),
+            #*discriminator_block(256, 512),
+            nn.Conv3d(128, 1, kernel_size=(4 ,5, 6), padding=(3,1,2), stride=3, bias=False),
             nn.Sigmoid()
         )
 
