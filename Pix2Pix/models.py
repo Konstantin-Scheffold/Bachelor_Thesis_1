@@ -25,7 +25,7 @@ class UNetDown(nn.Module):
         layers = [nn.Conv3d(in_size, out_size, 3, stride = stride, padding = 1, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.LeakyReLU(0.2))
+        layers.append(nn.ReLU(inplace=True)) #nn.LeakyReLU(0.2),)
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
@@ -40,7 +40,7 @@ class UNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
             nn.InstanceNorm3d(out_size),
-            nn.LeakyReLU(0.2), #nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True), #nn.LeakyReLU(0.2),
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -58,6 +58,7 @@ class GeneratorUNet(nn.Module):
         super(GeneratorUNet, self).__init__()
 
         self.down1 = UNetDown(in_channels, 64, normalize=False)
+        #self.down1_5 = UNetDown(32, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
@@ -93,7 +94,6 @@ class GeneratorUNet(nn.Module):
         u1 = self.up1(d8, d7)
         u2 = self.up2(u1, d6)
         u3 = self.up3(u2, d5)
-
         u4 = self.up4(u3, d4)
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
