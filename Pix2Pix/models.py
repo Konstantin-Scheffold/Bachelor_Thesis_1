@@ -62,18 +62,18 @@ class GeneratorUNet(nn.Module):
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
-        self.down5 = UNetDown(512, 512, dropout=0.5)#, normalize=False, stride=2)
-        self.down6 = UNetDown(512, 512, dropout=0.5)#, normalize=False, stride=2)
-        self.down7 = UNetDown(512, 512, dropout=0.5, stride = 1)
+        self.down5 = UNetDown(512, 512, dropout=0.5,stride=2)#, normalize=False, stride=2)
+        self.down6 = UNetDown(512, 512, dropout=0.5,stride=1)#, normalize=False, stride=2)
+        self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
         self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
 
-        self.up1 = UNetUp(512, 512, dropout=0.5, stride = 1)
-        self.up2 = UNetUp(1024, 512, dropout=0.5, stride = 1)
-        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=4, stride = 1, padding = 1)
+        self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
+        self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
+        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=3, stride = 1, padding = 1)
         self.up4 = UNetUp(1024, 512, kernel_size=4, stride=2, padding=1)
-        self.up5 = UNetUp(1024, 256, kernel_size=(4,4,3), stride=2, padding=1)
-        self.up6 = UNetUp(512, 128, kernel_size=(4,3,4), stride=2, padding=1)
-        self.up7 = UNetUp(256, 64, kernel_size=(3,3,4), stride=2, padding=1)
+        self.up5 = UNetUp(1024, 256, kernel_size=3, stride=2, padding=1)
+        self.up6 = UNetUp(512, 128, kernel_size=3, stride=2, padding=1)
+        self.up7 = UNetUp(256, 64, kernel_size=(4,3,3), stride=2, padding=1)
 
         self.final = nn.Sequential(
             nn.Conv3d(128, 1, kernel_size=3, stride=1, padding=1),
@@ -98,7 +98,7 @@ class GeneratorUNet(nn.Module):
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
         u7 = self.up7(u6, d1)
-        u8 = nn.functional.interpolate(u7, size=(36,30,30), mode=interpolation_mode)
+        u8 = nn.functional.interpolate(u7, size=(20, 17, 17), mode=interpolation_mode)
 
         return 4 * self.final(u8)   # 4*,weil input in dem Bereich
 
@@ -112,20 +112,20 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2):
+        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2, kernel_size=5):
             """Returns downsampling layers of each discriminator block"""
-            layers = [nn.Conv3d(in_filters, out_filters, 3, stride=2, padding=1)]
+            layers = [nn.Conv3d(in_filters, out_filters, kernel_size=kernel_size, stride=stride, padding=1)]
             if normalization:
                 layers.append(nn.InstanceNorm3d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(2, 64, normalization=False),
-            *discriminator_block(64, 128, stride = 1),
-            *discriminator_block(128, 256, stride = 1),
-            *discriminator_block(256, 512),
-            nn.Conv3d(512, 1, kernel_size=4, padding=(3,2,2), stride=1, bias=False),
+            *discriminator_block(2, 64, stride=2,  normalization=False),
+            *discriminator_block(64, 128, stride = 2),
+            #*discriminator_block(128, 256, stride = 1),
+            #*discriminator_block(256, 512),
+            nn.Conv3d(128, 1, kernel_size=(4 ,4, 6), padding=(3,1,2), stride=3, bias=False),
             nn.Sigmoid()
         )
 

@@ -26,14 +26,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
 parser.add_argument("--n_epochs", type=int, default=150, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
-parser.add_argument("--img_height", type=int, default=36, help="size of image height")
-parser.add_argument("--img_width", type=int, default=30, help="size of image width")
-parser.add_argument("--img_depth", type=int, default=30, help="size of image depth")
+parser.add_argument("--img_height", type=int, default=20, help="size of image height")
+parser.add_argument("--img_width", type=int, default=17, help="size of image width")
+parser.add_argument("--img_depth", type=int, default=17, help="size of image depth")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=500,
                     help="interval between sampling of images from generators")
@@ -44,8 +44,7 @@ print(opt)
 validation = True
 lambda_pixel = 2  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 0.25  # slows down Discriminator loss to balance Disc and Gen
-# changes learning rate of the discriminator to balance
-rate_D_G_train = 7
+rate_D_G_train = 7 # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
 
@@ -55,7 +54,7 @@ os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
 cuda = True if torch.cuda.is_available() else False
 
 # Loss functions
-criterion_GAN = torch.nn.MSELoss()
+criterion_GAN = torch.nn.BCELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
@@ -110,7 +109,7 @@ def sample_images(imgs, batches_done):
     real_CT = imgs["CT"].type(Tensor)
     real_PD = imgs["PD"].type(Tensor)
     fake_PD = generator(real_CT)
-    sub_data_CT_PD = np.array([real_CT, real_PD, fake_PD], dtype=object)
+    sub_data_CT_PD = np.array([real_CT.cpu().detach().numpy(), real_PD.cpu().detach().numpy(), fake_PD.cpu().detach().numpy()], dtype=object)
     np.save("images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
 
 
@@ -301,7 +300,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       'rate_D_G_train{}'.format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7), rate_D_G_train))
-            plt.ylim(0, 1.5)
+            plt.ylim(0, 2)
             plt.legend()
 
             plt.subplot(2, 1, 2)
