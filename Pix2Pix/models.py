@@ -25,7 +25,7 @@ class UNetDown(nn.Module):
         layers = [nn.Conv3d(in_size, out_size, 3, stride = stride, padding = 1, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.ReLU(inplace=True)) #nn.LeakyReLU(0.2),)
+        layers.append(nn.LeakyReLU(0.2, inplace=True))#nn.ReLU(inplace=True))
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
@@ -40,7 +40,7 @@ class UNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size = kernel_size, stride = stride, padding  = padding, bias=False),
             nn.InstanceNorm3d(out_size),
-            nn.ReLU(inplace=True), #nn.LeakyReLU(0.2),
+            nn.LeakyReLU(0.2, inplace=True) # nn.ReLU(inplace=True),
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))

@@ -27,7 +27,7 @@ parser.add_argument("--epoch", type=int, default=0, help="epoch to start trainin
 parser.add_argument("--n_epochs", type=int, default=150, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
@@ -37,14 +37,14 @@ parser.add_argument("--img_depth", type=int, default=17, help="size of image dep
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=500,
                     help="interval between sampling of images from generators")
-parser.add_argument("--checkpoint_interval", type=int, default=5, help="interval between model checkpoints")
+parser.add_argument("--checkpoint_interval", type=int, default=3, help="interval between model checkpoints")
 opt = parser.parse_args()
 print(opt)
 
 validation = True
 lambda_pixel = 2  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 0.25  # slows down Discriminator loss to balance Disc and Gen
-rate_D_G_train = 7 # sets relative number of Gen train Epochs to Disc train epochs
+rate_D_G_train = 5  # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
 
@@ -109,7 +109,7 @@ def sample_images(imgs, batches_done):
     real_CT = imgs["CT"].type(Tensor)
     real_PD = imgs["PD"].type(Tensor)
     fake_PD = generator(real_CT)
-    sub_data_CT_PD = np.array([real_CT.cpu().detach().numpy(), real_PD.cpu().detach().numpy(), fake_PD.cpu().detach().numpy()], dtype=object)
+    sub_data_CT_PD = np.array([real_CT, real_PD, fake_PD], dtype=object)
     np.save("images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
 
 
@@ -118,13 +118,9 @@ def sample_images(imgs, batches_done):
 # ----------
 
 loss_batch_G, loss_batch_D, loss_batch_GAN, loss_batch_pixel = [], [], [], [],
-
 loss_steps_G, loss_steps_D, loss_steps_pixel, loss_steps_GAN = [], [], [], []
-
 loss_batch_G_val, loss_batch_D_val, loss_batch_GAN_val, loss_batch_pixel_val = [], [], [], []
-
 loss_steps_G_val, loss_steps_D_val, loss_steps_pixel_val, loss_steps_GAN_val = [], [], [], []
-
 D_accuracy_real, D_accuracy_fake, D_accuracy_fake_img, D_accuracy_real_img = [], [], [], []
 
 # ----------
@@ -313,9 +309,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.show()
 
             # If at sample interval save image
-    if epoch % opt.checkpoint_interval == 0:
+    if i % opt.checkpoint_interval == 0:
         imgs = next(iter(val_dataloader))
-        sample_images(imgs, batches_done)
+        sample_images(imgs, epoch)
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
