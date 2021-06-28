@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 
 
 class ImageDataset(Dataset):
-    def __init__(self, root, transforms_=None, mode="train"):
+    def __init__(self, root, transforms_=None):
         self.transform = transforms.Compose(transforms_)
         self.root = root
         self.list_files = os.listdir(self.root)

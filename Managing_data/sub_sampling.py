@@ -5,7 +5,7 @@ print('a')
 from Managing_data.Def_functions import make_subsamples_3d
 from Managing_data.Def_functions import make_a_mesh
 print('b')
-from Managing_data.Get_Mesh import Data_rot_PD as Data_PD
+from Managing_data.Registrieren_PD import Data_rot_PD as Data_PD
 print('c')
 from Managing_data.Read_dicom import Data_CT
 print('d')
@@ -13,6 +13,8 @@ print('d')
 size = 18
 Peak_Preview = False
 save_subsamples = True
+minusone_one, normalize = True, False
+
 print('e')
 # make size dividable by 4, so make_subsamples_3d can handle it, further we neede to test, on which egde to cut, the samples,
 # since when done by the ursprung it shifts the Dicom picture
@@ -26,8 +28,12 @@ Data_CT.data = Data_CT.data[:-d, :-e, :-f]
 print('g')
 
 # Data normalization
-Data_PD.data = (Data_PD.data-np.mean(Data_PD.data))/np.std(Data_PD.data)
-Data_CT.data = (Data_CT.data-np.mean(Data_CT.data))/np.std(Data_CT.data)
+if normalize:
+    Data_PD.data = (Data_PD.data-np.mean(Data_PD.data))/np.std(Data_PD.data)
+    Data_CT.data = (Data_CT.data-np.mean(Data_CT.data))/np.std(Data_CT.data)
+if minusone_one:
+    Data_PD.data = 2*(Data_PD.data-np.min(Data_PD.data))/(np.max(Data_PD.data)-np.min(Data_PD.data))-1
+    Data_CT.data = 2*(Data_CT.data-np.min(Data_CT.data))/(np.max(Data_CT.data)-np.min(Data_CT.data))-1
 
 sub_data_PD, sub_position_PD = make_subsamples_3d(Data_PD, size)
 print('h')
@@ -36,8 +42,8 @@ print(np.shape(sub_data_PD))
 print(np.shape(sub_data_CT))
 
 if Peak_Preview:
-    Data_PD.data = sub_data_PD[500]
-    Data_CT.data = sub_data_CT[500]
+    Data_PD.data = sub_data_PD[0]
+    Data_CT.data = sub_data_CT[0]
     make_a_mesh(Data_CT, r'C:\Users\Konra\OneDrive\Desktop\CT_control.ply', np.mean(Data_CT.data))
     make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\PD_control.ply', np.mean(Data_PD.data))
 

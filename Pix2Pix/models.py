@@ -20,9 +20,9 @@ def weights_init_normal(m):
 ##############################
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, stride = 2):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, stride=2):
         super(UNetDown, self).__init__()
-        layers = [nn.Conv3d(in_size, out_size, 3, stride = stride, padding = 1, bias=False)]
+        layers = [nn.Conv3d(in_size, out_size, 3, stride=stride, padding=1, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
         layers.append(nn.LeakyReLU(0.2, inplace=True))#nn.ReLU(inplace=True))
@@ -57,23 +57,23 @@ class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=1, out_channels=3):
         super(GeneratorUNet, self).__init__()
 
-        self.down1 = UNetDown(in_channels, 64, normalize=False)
-        #self.down1_5 = UNetDown(32, 64, normalize=False)
+        self.down1 = UNetDown(in_channels, 32, normalize=False)
+        self.down1_5 = UNetDown(32, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
-        self.down5 = UNetDown(512, 512, dropout=0.5,stride=2)#, normalize=False, stride=2)
-        self.down6 = UNetDown(512, 512, dropout=0.5,stride=1)#, normalize=False, stride=2)
+        self.down5 = UNetDown(512, 512, dropout=0.5, stride=2)
+        self.down6 = UNetDown(512, 512, dropout=0.5, stride=1)
         self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
-        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride = 1)
+        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
 
         self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
         self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
-        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=3, stride = 1, padding = 1)
+        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=3, stride = 1, padding=1)
         self.up4 = UNetUp(1024, 512, kernel_size=4, stride=2, padding=1)
         self.up5 = UNetUp(1024, 256, kernel_size=3, stride=2, padding=1)
         self.up6 = UNetUp(512, 128, kernel_size=3, stride=2, padding=1)
-        self.up7 = UNetUp(256, 64, kernel_size=(4,3,3), stride=2, padding=1)
+        self.up7 = UNetUp(256, 64, kernel_size=(4, 3, 3), stride=2, padding=1)
 
         self.final = nn.Sequential(
             nn.Conv3d(128, 1, kernel_size=3, stride=1, padding=1),
@@ -100,7 +100,7 @@ class GeneratorUNet(nn.Module):
         u7 = self.up7(u6, d1)
         u8 = nn.functional.interpolate(u7, size=(20, 17, 17), mode=interpolation_mode)
 
-        return 4 * self.final(u8)   # 4*,weil input in dem Bereich
+        return self.final(u8)
 
 
 ##############################
@@ -112,7 +112,7 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2, kernel_size=5):
+        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2, kernel_size=3):
             """Returns downsampling layers of each discriminator block"""
             layers = [nn.Conv3d(in_filters, out_filters, kernel_size=kernel_size, stride=stride, padding=1)]
             if normalization:
@@ -122,10 +122,10 @@ class Discriminator(nn.Module):
 
         self.model = nn.Sequential(
             *discriminator_block(2, 64, stride=2,  normalization=False),
-            *discriminator_block(64, 128, stride = 2),
-            #*discriminator_block(128, 256, stride = 1),
-            #*discriminator_block(256, 512),
-            nn.Conv3d(128, 1, kernel_size=(4 ,4, 6), padding=(3,1,2), stride=3, bias=False),
+            *discriminator_block(64, 128, stride=2),
+            *discriminator_block(128, 256, stride=2),
+            *discriminator_block(256, 512, stride=1),
+            nn.Conv3d(512, 1, kernel_size=(3, 4, 4), padding=0, stride=1, bias=False),
             nn.Sigmoid()
         )
 

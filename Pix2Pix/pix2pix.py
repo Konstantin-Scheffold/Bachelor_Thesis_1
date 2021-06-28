@@ -24,7 +24,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=150, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
@@ -37,14 +37,14 @@ parser.add_argument("--img_depth", type=int, default=17, help="size of image dep
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=500,
                     help="interval between sampling of images from generators")
-parser.add_argument("--checkpoint_interval", type=int, default=3, help="interval between model checkpoints")
+parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between model checkpoints")
 opt = parser.parse_args()
 print(opt)
 
 validation = True
-lambda_pixel = 2  # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 10  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 0.25  # slows down Discriminator loss to balance Disc and Gen
-rate_D_G_train = 5  # sets relative number of Gen train Epochs to Disc train epochs
+rate_D_G_train = 8  # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
 
@@ -54,7 +54,7 @@ os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
 cuda = True if torch.cuda.is_available() else False
 
 # Loss functions
-criterion_GAN = torch.nn.BCELoss()
+criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
@@ -83,22 +83,19 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.4, patience=500, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.4, patience=250, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
 
 # Configure dataloaders
-transforms_ = [
-    transforms.ToTensor(),
-]
 dataloader = DataLoader(
-    ImageDataset("../Data/Dicom_Data_edited/train", transforms_=transforms_),
+    ImageDataset("../Data/Dicom_Data_edited/train", transforms_=[transforms.ToTensor()]),
     batch_size=opt.batch_size,
     shuffle=True,
 )
 val_dataloader = DataLoader(
-    ImageDataset("../Data/Dicom_Data_edited/val", transforms_=transforms_, mode="val"),
+    ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
     batch_size=opt.batch_size,
     shuffle=True,
 )
@@ -278,7 +275,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 100 == 0 and len(loss_steps_D) > 2:
+        if i % 270 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(8, 8))
             plt.subplot(2, 1, 1)
             plt.ylabel("Loss curves")
@@ -296,7 +293,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       'rate_D_G_train{}'.format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7), rate_D_G_train))
-            plt.ylim(0, 2)
+            plt.ylim(0, 1.25)
             plt.legend()
 
             plt.subplot(2, 1, 2)
@@ -309,7 +306,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.show()
 
             # If at sample interval save image
-    if i % opt.checkpoint_interval == 0:
+    if epoch % opt.checkpoint_interval == 0:
         imgs = next(iter(val_dataloader))
         sample_images(imgs, epoch)
 
