@@ -25,12 +25,12 @@ if load_model:
     real_PD = real_PD[0]
 
 else:
-    a = np.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\images\facades\3.npy', allow_pickle=True)
+    a = np.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\images\facades\1.npy', allow_pickle=True)
     real_PD = a[1][0]
     fake_PD = a[2][0]
 
 Data_PD.data = np.array(list(real_PD.cpu().squeeze().detach().numpy()), dtype=float)
-make_a_mesh(Data_PD, 'newsubsamples_bigdisc_MSE_real.ply', np.mean(Data_PD.data))
+make_a_mesh(Data_PD, 'newsubsamples_bigdisc_MSE_biggen_real.ply', np.mean(Data_PD.data))
 
 Data_PD.data = np.array(list(fake_PD.cpu().squeeze().detach().numpy()), dtype=float)
-make_a_mesh(Data_PD, 'newsubsamples_bigdisc_MSE_fake.ply', np.mean(Data_PD.data))
+make_a_mesh(Data_PD, 'newsubsamples_bigdisc_MSE_biggen_fake.ply', np.mean(Data_PD.data))

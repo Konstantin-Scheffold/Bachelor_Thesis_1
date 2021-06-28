@@ -119,7 +119,7 @@ class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True, stride = 2, kernel_size=3):
+        def discriminator_block(in_filters, out_filters, normalization=True, stride=2, kernel_size=3):
             """Returns downsampling layers of each discriminator block"""
             layers = [nn.Conv3d(in_filters, out_filters, kernel_size=kernel_size, stride=stride, padding=1)]
             if normalization:
@@ -131,8 +131,8 @@ class Discriminator(nn.Module):
             *discriminator_block(2, 64, stride=2,  normalization=False),
             *discriminator_block(64, 128, stride=2),
             *discriminator_block(128, 256, stride=2),
-            *discriminator_block(256, 512, stride=1),
-            nn.Conv3d(512, 1, kernel_size=(3, 4, 4), padding=0, stride=1, bias=False),
+            #*discriminator_block(256, 512, stride=1),
+            nn.Conv3d(256, 1, kernel_size=(3, 4, 4), padding=0, stride=1, bias=False),
             nn.Sigmoid()
         )
 
