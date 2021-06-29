@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
 parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=4, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -42,9 +42,10 @@ opt = parser.parse_args()
 print(opt)
 
 validation = True
-lambda_pixel = 10  # Loss weight of L1 pixel-wise loss between translated image and real image
-Loss_D_rate = 0.25  # slows down Discriminator loss to balance Disc and Gen
-rate_D_G_train = 8  # sets relative number of Gen train Epochs to Disc train epochs
+lambda_pixel = 6  # Loss weight of L1 pixel-wise loss between translated image and real image
+Loss_D_rate = 0.025  # slows down Discriminator loss to balance Disc and Gen
+rate_D_G_train = 8
+# sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
 
@@ -58,7 +59,7 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
-generator = GeneratorUNet()
+generator = GeneratorWideUNet() # GeneratorUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -83,7 +84,7 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.4, patience=750, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.4, patience=400, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
@@ -189,7 +190,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Cross validation
         # --------------
 
-        # if validation:
         val_imgs = next(iter(val_dataloader))
         # Model inputs
         real_CT_val = val_imgs["CT"].type(Tensor)
@@ -257,7 +257,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 10 == 0 and i :
+        if i % 10 == 0 and i:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -275,19 +275,20 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 270 == 0 and len(loss_steps_D) > 2:
-            plt.figure(figsize=(8, 8))
-            plt.subplot(2, 1, 1)
+        if i % 500 == 0 and len(loss_steps_D) > 2:
+            plt.figure(figsize=(14, 8))
+            # plot Loss curves
+            plt.subplot(2, 6, (1, 3))
             plt.ylabel("Loss curves")
             plt.plot(range(len(loss_steps_D)), loss_steps_D, 'y-', label="Disciminator")
             plt.plot(range(len(loss_steps_G)), loss_steps_G, 'b-', label="Generator")
             plt.plot(range(len(loss_steps_GAN)), loss_steps_GAN, 'r-', label="GAN")
             plt.plot(range(len(loss_steps_pixel)), loss_steps_pixel, 'c-', label="pixelwise loss")
-            if validation:
-                plt.plot(range(len(loss_steps_D_val)), loss_steps_D_val, 'y--')
-                plt.plot(range(len(loss_steps_G_val)), loss_steps_G_val, 'b--')
-                plt.plot(range(len(loss_steps_GAN_val)), loss_steps_GAN_val, 'r--')
-                plt.plot(range(len(loss_steps_pixel_val)), loss_steps_pixel_val, 'c--')
+
+            plt.plot(range(len(loss_steps_D_val)), loss_steps_D_val, 'y--')
+            plt.plot(range(len(loss_steps_G_val)), loss_steps_G_val, 'b--')
+            plt.plot(range(len(loss_steps_GAN_val)), loss_steps_GAN_val, 'r--')
+            plt.plot(range(len(loss_steps_pixel_val)), loss_steps_pixel_val, 'c--')
             plt.xticks(np.arange(1, len(loss_steps_D)+1, 10))
             plt.grid()
             plt.title('loss_curve lr:{},'
@@ -296,13 +297,38 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.ylim(0, 1.25)
             plt.legend()
 
-            plt.subplot(2, 1, 2)
+            # plot Discriminator Accuracy
+            plt.subplot(2, 6, (7, 9))
             plt.xlabel("Training Epochs")
             plt.ylabel("Discriminator Accuracy")
             plt.plot(range(len(D_accuracy_real_img)), D_accuracy_real_img, label="Disc_accuracy_real")
             plt.plot(range(len(D_accuracy_fake_img)), D_accuracy_fake_img, label="Disc_accuracy_fake")
             plt.grid()
             plt.legend()
+
+            # plot real_PD
+            real_PD_val = real_PD_val[0].cpu().squeeze().detach().numpy()
+            real_CT_val = real_CT_val[0].cpu().squeeze().detach().numpy()
+            fake_PD_val = fake_PD_val[0].cpu().squeeze().detach().numpy()
+
+            plt.subplot(2, 6, 4)
+            plt.ylabel('real_PD')
+            plt.title('x-axis')
+            plt.imshow(real_PD[int(np.size(real_PD, 0) / 2), :, :])
+            plt.subplot(2, 6, 5)
+            plt.title('y-axis')
+            plt.imshow(real_PD[:, int(np.size(real_PD, 1) / 2), :])
+            plt.subplot(2, 6, 6)
+            plt.title('z-axis')
+            plt.imshow(real_PD[:, :, int(np.size(real_PD, 2) / 2)])
+            # plot fake_PD
+            plt.subplot(2, 6, 10)
+            plt.ylabel('fake_PD')
+            plt.imshow(fake_PD[int(np.size(fake_PD, 0) / 2), :, :])
+            plt.subplot(2, 6, 11)
+            plt.imshow(fake_PD[:, int(np.size(fake_PD, 1) / 2), :])
+            plt.subplot(2, 6, 12)
+            plt.imshow(fake_PD[:, :, int(np.size(fake_PD, 2) / 2)])
             plt.show()
 
             # If at sample interval save image
