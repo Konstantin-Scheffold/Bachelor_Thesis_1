@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
 parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -59,7 +59,7 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
-generator = GeneratorWideUNet() # GeneratorUNet()
+generator = FullCon_Network() # GeneratorUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -84,7 +84,7 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.4, patience=400, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=350, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
@@ -275,7 +275,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 500 == 0 and len(loss_steps_D) > 2:
+        if i % 65 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -314,21 +314,21 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.subplot(2, 6, 4)
             plt.ylabel('real_PD')
             plt.title('x-axis')
-            plt.imshow(real_PD[int(np.size(real_PD, 0) / 2), :, :])
+            plt.imshow(real_PD_val[int(np.size(real_PD_val, 0) / 2), :, :])
             plt.subplot(2, 6, 5)
             plt.title('y-axis')
-            plt.imshow(real_PD[:, int(np.size(real_PD, 1) / 2), :])
+            plt.imshow(real_PD_val[:, int(np.size(real_PD_val, 1) / 2), :])
             plt.subplot(2, 6, 6)
             plt.title('z-axis')
-            plt.imshow(real_PD[:, :, int(np.size(real_PD, 2) / 2)])
+            plt.imshow(real_PD_val[:, :, int(np.size(real_PD_val, 2) / 2)])
             # plot fake_PD
             plt.subplot(2, 6, 10)
             plt.ylabel('fake_PD')
-            plt.imshow(fake_PD[int(np.size(fake_PD, 0) / 2), :, :])
+            plt.imshow(fake_PD_val[int(np.size(fake_PD_val, 0) / 2), :, :])
             plt.subplot(2, 6, 11)
-            plt.imshow(fake_PD[:, int(np.size(fake_PD, 1) / 2), :])
+            plt.imshow(fake_PD_val[:, int(np.size(fake_PD_val, 1) / 2), :])
             plt.subplot(2, 6, 12)
-            plt.imshow(fake_PD[:, :, int(np.size(fake_PD, 2) / 2)])
+            plt.imshow(fake_PD_val[:, :, int(np.size(fake_PD_val, 2) / 2)])
             plt.show()
 
             # If at sample interval save image

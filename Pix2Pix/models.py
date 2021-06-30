@@ -215,23 +215,24 @@ class FullCon_layer(nn.Module):
         return self.model(x)
 
 
+
 class FullCon_Network(nn.Module):
     def __init__(self):
         super(FullCon_Network, self).__init__()
 
-        self.step1 = FullCon_layer(1, 4, normalize=False)
-        self.step2 = FullCon_layer(4, 16)
-        self.step3 = FullCon_layer(16, 64)
-        self.step4 = FullCon_layer(64, 128)
-        self.step5 = FullCon_layer(128, 256)
-        self.step6 = FullCon_layer(256, 256, dropout=0.5)
-        self.step7 = FullCon_layer(256, 128)
-        self.step8 = FullCon_layer(128, 64)
-        self.step9 = FullCon_layer(64, 16)
-        self.step10 = FullCon_layer(16, 4)
+        self.step1 = FullCon_layer(49, 49, normalize=False)
+        self.step2 = FullCon_layer(49, 49)
+        self.step3 = FullCon_layer(49, 98)
+        self.step4 = FullCon_layer(98, 98)
+        self.step5 = FullCon_layer(98, 196, dropout=0.5)
+        self.step6 = FullCon_layer(196, 196, dropout=0.5)
+        self.step7 = FullCon_layer(196, 98, dropout=0.5)
+        self.step8 = FullCon_layer(98, 98)
+        self.step9 = FullCon_layer(98, 49)
+        self.step10 = FullCon_layer(49, 49)
 
         self.final = nn.Sequential(
-            nn.Linear(4, 1, bias=False),
+            nn.Linear(in_features=49, out_features=49),
             nn.Tanh(),
         )
 
@@ -249,9 +250,10 @@ class FullCon_Network(nn.Module):
         s9 = self.step9(s8)
         s10 = self.step10(s9)
 
-        s11 = nn.functional.interpolate(s10, size=(20, 17, 17), mode=interpolation_mode)
-
-        return self.final(s11)
+        s11 = self.final(s10)
+        s12 = torch.reshape(s11, (-1, 1, 52, 49, 49))
+        s13 = nn.functional.interpolate(s12, size=(20, 17, 17), mode=interpolation_mode)
+        return s13
 
 
 ##############################
@@ -273,10 +275,10 @@ class Discriminator(nn.Module):
 
         self.model = nn.Sequential(
             *discriminator_block(2, 64, stride=2,  normalization=False),
-            *discriminator_block(64, 128, stride=2),
-            *discriminator_block(128, 256, stride=2),
-            #*discriminator_block(256, 512, stride=1),
-            nn.Conv3d(256, 1, kernel_size=(3, 4, 4), padding=0, stride=1, bias=False),
+            *discriminator_block(64, 128, stride = 2),
+            #*discriminator_block(128, 256, stride = 1),
+            #*discriminator_block(256, 512),
+            nn.Conv3d(128, 1, kernel_size=(4 ,5, 6), padding=(3,1,2), stride=3, bias=False),
             nn.Sigmoid()
         )
 
