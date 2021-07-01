@@ -6,7 +6,7 @@ from models import *
 from datasets import *
 from torch.utils.data import DataLoader
 
-load_model = False
+load_model = True
 print_out = False
 
 if load_model:
@@ -19,12 +19,13 @@ if load_model:
     )
     generator = GeneratorUNet()
     generator = generator.cuda()
-    generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\saved_models\facades\generator_3.pth'))
+    generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\archiv_saved_models\saved_models_MSE_biggen_dis-1lay\facades\generator_2.pth'))
     imgs = next(iter(val_dataloader))
     real_CT = imgs["CT"].type(Tensor)
     real_PD = imgs["PD"].type(Tensor)
     fake_PD = generator(real_CT)[0]
     real_PD = real_PD[0]
+    real_CT = real_CT[0]
 
 else:
     a = np.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\archiv_images\images_BCEloss_smallsamps_disc-1lay_biggen\facades\3.npy', allow_pickle=True)
@@ -40,6 +41,10 @@ if print_out:
     make_a_mesh(Data_PD, 'MSE_biggen_disc-1lay_smallsamps_fake.ply', np.mean(Data_PD.data))
 else:
     # plot real_CT
+    real_CT = real_CT.cpu().squeeze().detach().numpy()
+    real_PD = real_PD.cpu().squeeze().detach().numpy()
+    fake_PD = fake_PD.cpu().squeeze().detach().numpy()
+
     plt.subplot(3, 3, 1)
     plt.title('x-axis')
     plt.ylabel('real_CT')

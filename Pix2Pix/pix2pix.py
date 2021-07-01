@@ -24,9 +24,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=30, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=16, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -43,8 +43,8 @@ print(opt)
 
 validation = True
 lambda_pixel = 6  # Loss weight of L1 pixel-wise loss between translated image and real image
-Loss_D_rate = 0.025  # slows down Discriminator loss to balance Disc and Gen
-rate_D_G_train = 8
+Loss_D_rate = 1  # slows down Discriminator loss to balance Disc and Gen
+rate_D_G_train = 1
 # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
@@ -59,7 +59,7 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
-generator = FullCon_Network() # GeneratorUNet()
+generator = GeneratorUNet() # GeneratorUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -145,10 +145,11 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_G.zero_grad()
 
         # GAN loss
+
         fake_PD = generator(real_CT)
         pred_fake = discriminator(fake_PD, real_CT)
         loss_GAN = criterion_GAN(pred_fake, valid)
-        loss_batch_GAN.append(loss_GAN.cpu().item())
+        loss_batch_GAN.append((1-loss_GAN.cpu().item()))
 
         # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_PD, real_PD)
@@ -257,7 +258,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 10 == 0 and i:
+        if i % 5 == 0 and i:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -275,7 +276,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 65 == 0 and len(loss_steps_D) > 2:
+        if i % 35 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -294,7 +295,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       'rate_D_G_train{}'.format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7), rate_D_G_train))
-            plt.ylim(0, 1.25)
+            #plt.ylim(0, 1.25)
             plt.legend()
 
             # plot Discriminator Accuracy

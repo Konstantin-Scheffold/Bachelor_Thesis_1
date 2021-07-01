@@ -40,7 +40,7 @@ class UNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False),
             nn.InstanceNorm3d(out_size),
-            nn.LeakyReLU(0.2, inplace=True) # nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True)
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -59,21 +59,21 @@ class GeneratorUNet(nn.Module):
         self.down0_5 = UNetDown(1, 16, normalize=False)
         self.down1 = UNetDown(16, 32, stride=2)
         self.down1_5 = UNetDown(32, 64)
-        self.down2 = UNetDown(64, 128, stride=2)
-        self.down3 = UNetDown(128, 256)
-        self.down4 = UNetDown(256, 512, dropout=0.5, stride=2)
-        self.down5 = UNetDown(512, 512, dropout=0.5, stride=1)
-        self.down6 = UNetDown(512, 512, dropout=0.5, stride=2)
-        self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
-        self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
+        self.down2 = UNetDown(64, 64, stride=2)
+        self.down3 = UNetDown(64, 64, normalize=False)
+        #self.down4 = UNetDown(256, 512, dropout=0.5, stride=2)
+        #self.down5 = UNetDown(512, 512, dropout=0.5, stride=1)
+        #self.down6 = UNetDown(512, 512, dropout=0.5, stride=2)
+        #self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
+        #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
 
-        self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
-        self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
-        self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=3, stride=2, padding=1)
-        self.up4 = UNetUp(1024, 512, kernel_size=3, stride=1, padding=1)
-        self.up5 = UNetUp(1024, 256, kernel_size=3, stride=2, padding=1)
-        self.up6 = UNetUp(512, 128, kernel_size=3, stride=1, padding=1)
-        self.up7 = UNetUp(256, 64, kernel_size=(4, 3, 3), stride=2, padding=1)
+        #self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
+        #self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
+        #self.up3 = UNetUp(1024, 512, dropout=0.5, kernel_size=3, stride=2, padding=1)
+        #self.up4 = UNetUp(1024, 512, kernel_size=3, stride=1, padding=1)
+        #self.up5 = UNetUp(1024, 256, kernel_size=3, stride=2, padding=1)
+        self.up6 = UNetUp(64, 64, kernel_size=3, stride=1, padding=1)
+        self.up7 = UNetUp(128, 64, kernel_size=(4, 3, 3), stride=2, padding=1)
         self.up8 = UNetUp(128, 32, kernel_size=3, stride=1, padding=1)
         self.up9 = UNetUp(64, 16, kernel_size=(4, 3, 3), stride=2, padding=1)
 
@@ -89,18 +89,18 @@ class GeneratorUNet(nn.Module):
         d1_5 = self.down1_5(d1)
         d2 = self.down2(d1_5)
         d3 = self.down3(d2)
-        d4 = self.down4(d3)
-        d5 = self.down5(d4)
-        d6 = self.down6(d5)
-        d7 = self.down7(d6)
-        d8 = self.down8(d7)
+        #d4 = self.down4(d3)
+        #d5 = self.down5(d4)
+        #d6 = self.down6(d5)
+        #d7 = self.down7(d6)
+        #d8 = self.down8(d7)
 
-        u1 = self.up1(d8, d7)
-        u2 = self.up2(u1, d6)
-        u3 = self.up3(u2, d5)
-        u4 = self.up4(u3, d4)
-        u5 = self.up5(u4, d3)
-        u6 = self.up6(u5, d2)
+        #u1 = self.up1(d8, d7)
+        #u2 = self.up2(u1, d6)
+        #u3 = self.up3(u2, d5)
+        #u4 = self.up4(u3, d4)
+        #u5 = self.up5(u4, d3)
+        u6 = self.up6(d3, d2)
         u7 = self.up7(u6, d1_5)
         u8 = self.up8(u7, d1)
         u9 = self.up9(u8, d0_5)
@@ -160,7 +160,7 @@ class GeneratorWideUNet(nn.Module):
         self.down1 = WideUNetDown(1, 16, normalize=False)
         self.down2 = WideUNetDown(16, 64)
         self.down3 = WideUNetDown(64, 128)
-        self.down4 = WideUNetDown(128, 256, kernel_size=3)
+        self.down4 = WideUNetDown(128, 256, kernel_size=3) #, normalize=False)
         self.down5 = WideUNetDown(256, 256, dropout=0.5, kernel_size=3)
         self.down6 = WideUNetDown(256, 256, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
@@ -275,18 +275,18 @@ class Discriminator(nn.Module):
 
         self.model = nn.Sequential(
             *discriminator_block(2, 64, stride=2,  normalization=False),
-            *discriminator_block(64, 128, stride = 2),
+            *discriminator_block(64, 128, stride=2),
             #*discriminator_block(128, 256, stride = 1),
             #*discriminator_block(256, 512),
-            nn.Conv3d(128, 1, kernel_size=(4 ,5, 6), padding=(3,1,2), stride=3, bias=False),
+            nn.Conv3d(128, 1, kernel_size=(5, 5, 6), padding=(3, 1, 2), stride=3, bias=False),
             nn.Sigmoid()
         )
 
     def forward(self, img_PD, img_CT):
         # Concatenate image and condition image by channels to produce input
         if img_PD.size() != img_CT.size():
-            img_PD = nn.functional.interpolate(img_PD, size = img_CT.size()[2:], mode=interpolation_mode)
+            img_PD = nn.functional.interpolate(img_PD, size=img_CT.size()[2:], mode=interpolation_mode)
         img_input = torch.cat((img_PD, img_CT), 1)
-        #noise = torch.normal(0, 0.1, list(img_input.size()) , device=torch.device('cuda'), requires_grad=True)
+        #noise = torch.normal(0, 0.05, list(img_input.size()) , device=torch.device('cuda'), requires_grad=True)
         output = self.model(img_input)#+noise)
         return output
