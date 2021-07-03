@@ -24,9 +24,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=30, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=4, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=16, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -42,12 +42,13 @@ opt = parser.parse_args()
 print(opt)
 
 validation = True
-lambda_pixel = 6  # Loss weight of L1 pixel-wise loss between translated image and real image
-Loss_D_rate = 1  # slows down Discriminator loss to balance Disc and Gen
+lambda_pixel = 50  # Loss weight of L1 pixel-wise loss between translated image and real image
+Loss_D_rate = 0.35  # slows down Discriminator loss to balance Disc and Gen
 rate_D_G_train = 1
+
 # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2, opt.img_depth // 2 ** 2)
+patch = (1, 15 , 13, 15)#9, 7, 8)
 
 os.makedirs("images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
@@ -55,11 +56,11 @@ os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
 cuda = True if torch.cuda.is_available() else False
 
 # Loss functions
-criterion_GAN = torch.nn.MSELoss()
-criterion_pixelwise = torch.nn.L1Loss()
+criterion_GAN = torch.nn.BCELoss()
+criterion_pixelwise = torch.nn.MSELoss()
 
 # Initialize generator and discriminator
-generator = GeneratorUNet() # GeneratorUNet()
+generator = GeneratorWideUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -84,19 +85,22 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=350, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=300, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
-
+transforms_ = [
+    transforms.ToTensor(),
+    #transforms.Normalize(mean=-1, std=2)
+]
 # Configure dataloaders
 dataloader = DataLoader(
-    ImageDataset("../Data/Dicom_Data_edited/train", transforms_=[transforms.ToTensor()]),
+    ImageDataset("../Data/Dicom_Data_edited/train", transforms_=transforms_),
     batch_size=opt.batch_size,
     shuffle=True,
 )
 val_dataloader = DataLoader(
-    ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
+    ImageDataset("../Data/Dicom_Data_edited/val", transforms_=transforms_),
     batch_size=opt.batch_size,
     shuffle=True,
 )
@@ -149,7 +153,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         fake_PD = generator(real_CT)
         pred_fake = discriminator(fake_PD, real_CT)
         loss_GAN = criterion_GAN(pred_fake, valid)
-        loss_batch_GAN.append((1-loss_GAN.cpu().item()))
+        loss_batch_GAN.append(loss_GAN.cpu().item())
 
         # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_PD, real_PD)
@@ -183,9 +187,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_D = Loss_D_rate * (loss_real + loss_fake)
         loss_batch_D.append(loss_D.cpu().item())
 
-        if i % rate_D_G_train == 0:
-            loss_D.backward()
-            optimizer_D.step()
+        #if i % rate_D_G_train == 0:
+        loss_D.backward()
+        optimizer_D.step()
 
         # --------------
         # Cross validation
@@ -276,7 +280,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 35 == 0 and len(loss_steps_D) > 2:
+        if i % 40 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
