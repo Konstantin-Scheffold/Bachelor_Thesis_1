@@ -24,9 +24,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=4, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -42,13 +42,12 @@ opt = parser.parse_args()
 print(opt)
 
 validation = True
-lambda_pixel = 50  # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 40  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 0.35  # slows down Discriminator loss to balance Disc and Gen
-rate_D_G_train = 1
 
 # sets relative number of Gen train Epochs to Disc train epochs
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, 15 , 13, 15)#9, 7, 8)
+patch = (1, 15, 13, 15)#9, 7, 8)
 
 os.makedirs("images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
@@ -262,7 +261,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 5 == 0 and i:
+        if i % 5 == 0:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -280,7 +279,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 40 == 0 and len(loss_steps_D) > 2:
+        if i % 30 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -298,7 +297,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.grid()
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
-                      'rate_D_G_train{}'.format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7), rate_D_G_train))
+                      .format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7)))
             #plt.ylim(0, 1.25)
             plt.legend()
 
@@ -313,7 +312,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
             # plot real_PD
             real_PD_val = real_PD_val[0].cpu().squeeze().detach().numpy()
-            real_CT_val = real_CT_val[0].cpu().squeeze().detach().numpy()
             fake_PD_val = fake_PD_val[0].cpu().squeeze().detach().numpy()
 
             plt.subplot(2, 6, 4)
