@@ -4,7 +4,7 @@ from Managing_data.Read_dicom import Data_PD
 import scipy
 
 print(1)
-shiftz = 11
+shiftz = 13
 shifty = 0.5
 gradx = -0.35
 grady = 0.2

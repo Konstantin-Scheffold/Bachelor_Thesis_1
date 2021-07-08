@@ -44,6 +44,3 @@ def make_subsamples_3d(vol, size):
     subsamples_data = np.asarray(subsamples_data)
 
     return subsamples_data, subsamples_spacing_out
-
-
-

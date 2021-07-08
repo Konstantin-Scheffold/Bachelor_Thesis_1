@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 
-print('a')
 from Managing_data.Def_functions import make_subsamples_3d
+print('a')
 from Managing_data.Def_functions import make_a_mesh
 print('b')
 from Managing_data.Registrieren_PD import Data_rot_PD as Data_PD
@@ -41,22 +41,26 @@ sub_data_CT, sub_position_CT = make_subsamples_3d(Data_CT, size)
 print(np.shape(sub_data_PD))
 print(np.shape(sub_data_CT))
 
+
 if Peak_Preview:
     Data_PD.data = sub_data_PD[0]
     Data_CT.data = sub_data_CT[0]
-    make_a_mesh(Data_CT, r'C:\Users\Konra\OneDrive\Desktop\CT_control.ply', np.mean(Data_CT.data))
-    make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\PD_control.ply', np.mean(Data_PD.data))
+    make_a_mesh(Data_CT, r'C:\Users\Konra\OneDrive\Desktop\CT_control25.ply', np.mean(Data_CT.data))
+    make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\PD_control25.ply', np.mean(Data_PD.data))
 
 
 #make the sub sample meshes
 if save_subsamples:
     for i in range(int(size**3)):
-        a = np.random.uniform(0,1)
-        if a<0.75:
+        a = np.random.uniform(0, 1)
+
+        if a < 0.75:
             # save a specific subsample for training
-            sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
-            np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\train\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
+            if np.sum(sub_data_CT[i]) > -120000:
+                sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype=object)
+                np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\train\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
         else:
             # save a specific subsample for validation
-            sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype = object)
-            np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\val\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)
+            if np.sum(sub_data_CT[i]) > -120000:
+                sub_data_CT_PD = np.array([sub_data_CT[i], sub_data_PD[i]], dtype=object)
+                np.save(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Data\Dicom_Data_edited\val\subsample_CTandPD_{}'.format(i), sub_data_CT_PD)

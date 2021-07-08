@@ -12,6 +12,7 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchvision.transforms.functional import InterpolationMode
 from torch.utils.data import DataLoader
+
 from torchvision import datasets
 from torch.autograd import Variable
 
@@ -24,7 +25,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
@@ -41,22 +42,25 @@ parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval
 opt = parser.parse_args()
 print(opt)
 
-validation = True
-lambda_pixel = 40  # Loss weight of L1 pixel-wise loss between translated image and real image
-Loss_D_rate = 0.35  # slows down Discriminator loss to balance Disc and Gen
-
-# sets relative number of Gen train Epochs to Disc train epochs
+# validation = True
+lambda_pixel = 30 # Loss weight of L1 pixel-wise loss between translated image and real image
+Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, 15, 13, 15)#9, 7, 8)
+patch = (1, 17, 16, 16)
 
-os.makedirs("images/%s" % opt.dataset_name, exist_ok=True)
-os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
+os.makedirs("CTtoPD/images/%s" % opt.dataset_name, exist_ok=True)
+os.makedirs("CTtoPD/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
 cuda = True if torch.cuda.is_available() else False
 
+def criterion_pixelwise(output, target):
+    loss = torch.mean((output - target)**4)
+    return torch.tensor(loss, device=torch.device('cuda'))
+
 # Loss functions
-criterion_GAN = torch.nn.BCELoss()
-criterion_pixelwise = torch.nn.MSELoss()
+criterion_GAN = torch.nn.MSELoss()
+#criterion_pixelwise = torch.nn.MSELoss()
+
 
 # Initialize generator and discriminator
 generator = GeneratorWideUNet()
@@ -69,12 +73,12 @@ if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
     criterion_GAN.cuda()
-    criterion_pixelwise.cuda()
+    #criterion_pixelwise.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load("saved_models/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
-    discriminator.load_state_dict(torch.load("saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    generator.load_state_dict(torch.load("CTtoPD/saved_models/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    discriminator.load_state_dict(torch.load("CTtoPD/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -84,12 +88,12 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=300, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=200, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
 transforms_ = [
-    transforms.ToTensor(),
+    transforms.ToTensor()
     #transforms.Normalize(mean=-1, std=2)
 ]
 # Configure dataloaders
@@ -104,14 +108,13 @@ val_dataloader = DataLoader(
     shuffle=True,
 )
 
-
 def sample_images(imgs, batches_done):
     """Saves a generated sample from the validation set"""
     real_CT = imgs["CT"].type(Tensor)
     real_PD = imgs["PD"].type(Tensor)
     fake_PD = generator(real_CT)
     sub_data_CT_PD = np.array([real_CT, real_PD, fake_PD], dtype=object)
-    np.save("images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
+    np.save("CTtoPD/images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
 
 
 # ----------
@@ -173,12 +176,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Real loss
 
-        pred_real = discriminator(real_PD, real_CT)
+        pred_real = discriminator(real_PD.detach(), real_CT.detach())
         loss_real = criterion_GAN(pred_real, valid)
         D_accuracy_real.append(np.round(np.mean(pred_real.cpu().detach().numpy())))
 
         # Fake loss
-        pred_fake = discriminator(fake_PD.detach(), real_CT)
+        pred_fake = discriminator(fake_PD.detach(), real_CT.detach())
         loss_fake = criterion_GAN(pred_fake, fake)
         D_accuracy_fake.append(np.round(np.mean((valid-pred_fake).cpu().detach().numpy())))
 
@@ -279,7 +282,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 30 == 0 and len(loss_steps_D) > 2:
+        if i % 20 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -298,7 +301,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       .format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7)))
-            #plt.ylim(0, 1.25)
+            plt.ylim(0, 2)
             plt.legend()
 
             # plot Discriminator Accuracy
@@ -341,5 +344,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
-        torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(generator.state_dict(), "CTtoPD/saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(discriminator.state_dict(), "CTtoPD/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
