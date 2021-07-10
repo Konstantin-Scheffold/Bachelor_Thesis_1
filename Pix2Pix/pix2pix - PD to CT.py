@@ -24,9 +24,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=25, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -45,12 +45,14 @@ print(opt)
 lambda_pixel = 3 # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, 3, 3, 3)
+patch = (1, 19, 18, 18)
 
 os.makedirs("PDtoCT/images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("PDtoCT/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
+
 cuda = True if torch.cuda.is_available() else False
+
 
 #def criterion_pixelwise(output, target):
 #    loss = torch.mean(torch.abs((output - target)**3))
@@ -60,9 +62,8 @@ cuda = True if torch.cuda.is_available() else False
 criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.L1Loss()
 
-
 # Initialize generator and discriminator
-generator = GeneratorWideUNet()
+generator = GeneratorUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method

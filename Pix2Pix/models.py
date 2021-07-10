@@ -121,9 +121,6 @@ class WideUNetDown(nn.Module):
         layers = [nn.Conv3d(in_size, in_size, kernel_size=3, stride=1, padding=1, bias=False),
                   nn.InstanceNorm3d(in_size),
                   nn.LeakyReLU(0.2, inplace=True)]
-        #if normalize:
-        #    layers.append(nn.InstanceNorm3d(in_size))
-        #layers.append(nn.LeakyReLU(0.2, inplace=True))
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -165,18 +162,20 @@ class GeneratorWideUNet(nn.Module):
     def __init__(self):
         super(GeneratorWideUNet, self).__init__()
 
-        self.down1 = WideUNetDown(1, 24, normalize=False, stride=2, kernel_size=(7, 5, 5))
+        #self.down0_5 = WideUNetDown(1, 12, normalize=False, stride=1, kernel_size=(7, 4, 4))
+        self.down1 = WideUNetDown(1, 24, stride=2, kernel_size=(7, 4, 4))
         self.down2 = WideUNetDown(24, 48, kernel_size=4,  stride=2)
         self.down3 = WideUNetDown(48, 96,  kernel_size=4, stride=2)
-        self.down4 = WideUNetDown(96, 96, dropout=0.5, kernel_size=3, stride=1)#, normalize=False)
+        self.down4 = WideUNetDown(96, 96, dropout=0.5, kernel_size=3, stride=1)
         self.down5 = WideUNetDown(96, 96, dropout=0.5, kernel_size=3, stride=1, normalize=False)
-        self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
+        #self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
-        self.up1 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
-        self.up2 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
+        #self.up1 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
+        self.up2 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
         self.up3 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
         self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=1)
         self.up5 = WideUNetUp(96, 24, kernel_size=4, stride=2, padding=1)
+        #self.up6 = WideUNetUp(48, 12, kernel_size=4, stride=2, padding=1)
 
         self.final = nn.Sequential(
             nn.Conv3d(48, 1, kernel_size=3, stride=1, padding=1),
@@ -186,22 +185,24 @@ class GeneratorWideUNet(nn.Module):
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
 
+        #d0_5 = self.down0_5(x)
         d1 = self.down1(x)
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
-        d6 = self.down6(d5)
+        #d6 = self.down6(d5)
 
-        u1 = self.up1(d6, d5)
-        u2 = self.up2(u1, d4)
+        #u1 = self.up1(d6, d5)
+        u2 = self.up2(d5, d4)
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
         u5 = self.up5(u4, d1)
-        u6 = self.final(u5)
-        u7 = nn.functional.interpolate(u6, size=(20, 17, 17), mode=interpolation_mode)
+        #u6 = self.up6(u5, d0_5)
+        u7 = self.final(u5)
+        u8 = nn.functional.interpolate(u7, size=(20, 17, 17), mode=interpolation_mode)
 
-        return u7
+        return u8
 
 
 ##############################

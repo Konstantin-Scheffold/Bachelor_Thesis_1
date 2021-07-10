@@ -56,29 +56,23 @@ class GeneratorUNet(nn.Module):
     def __init__(self):
         super(GeneratorUNet, self).__init__()
 
-        self.down0_5 = UNetDown(1, 1, kernel_size=(3, 4, 4),  padding=(0, 2, 2), normalize=False)
-        self.down1 = UNetDown(1, 24, kernel_size=(6, 5, 5), stride=2, padding=1)
-        self.down1_5 = UNetDown(24, 48, kernel_size=(3, 4, 4), stride=2)
-        self.down2 = UNetDown(48, 96, kernel_size=4, stride=2)
-        self.down3 = UNetDown(96, 192, kernel_size=4, dropout=0.5, stride=2)
-        self.down4 = UNetDown(192, 192, dropout=0.5, stride=1)
-        self.down5 = UNetDown(192, 192, dropout=0.5, stride=1)
-        self.down6 = UNetDown(192, 192, dropout=0.5, stride=1, normalize=False)
-        #self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
-        #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
+        self.down0_5 = UNetDown(1, 24, normalize=False)
+        self.down1 = UNetDown(24, 48, stride=2, kernel_size=(7, 5, 5))
+        self.down2 = UNetDown(48, 96, kernel_size=4,  stride=2)
+        self.down3 = UNetDown(96, 192,  kernel_size=4, stride=2)
+        self.down4 = UNetDown(192, 192, dropout=0.5, kernel_size=2, stride=2)
+        self.down5 = UNetDown(192, 192, dropout=0.5, kernel_size=3, stride=1)
+        self.down6 = UNetDown(192, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
-        #self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
-        #self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
-        self.up3 = UNetUp(192, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up4 = UNetUp(384, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up5 = UNetUp(384, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up6 = UNetUp(384, 96, dropout=0.5, kernel_size=4, stride=2, padding=1)
-        self.up7 = UNetUp(192, 48, kernel_size=4, stride=2, padding=1)
-        self.up8 = UNetUp(96, 24, kernel_size=4, stride=2, padding=1)
-        self.up9 = UNetUp(48, 1, kernel_size=4, stride=2, padding=0)
+        self.up1 = UNetUp(192, 192, dropout=0.5, kernel_size=3, stride=1)
+        self.up2 = UNetUp(384, 192, dropout=0.5, kernel_size=3, stride=1)
+        self.up3 = UNetUp(384, 192, dropout=0.5, kernel_size=2, stride=2)
+        self.up4 = UNetUp(384, 96, kernel_size=4, stride=2, padding=1)
+        self.up5 = UNetUp(192, 48, kernel_size=4, stride=2, padding=1)
+        self.up6 = UNetUp(96, 24, stride=2, kernel_size=(8, 5, 5))
 
         self.final = nn.Sequential(
-            nn.Conv3d(2, 1, kernel_size=3, stride=1, padding=1),
+            nn.ConvTranspose3d(48, 1, kernel_size=4, stride=2, padding=2),
             nn.Tanh(),
         )
 
@@ -86,28 +80,22 @@ class GeneratorUNet(nn.Module):
         # U-Net generator with skip connections from encoder to decoder
         d0_5 = self.down0_5(x)
         d1 = self.down1(d0_5)
-        d1_5 = self.down1_5(d1)
-        d2 = self.down2(d1_5)
+        d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        #d7 = self.down7(d6)
-        #d8 = self.down8(d7)
 
-        #u1 = self.up1(d8, d7)
-        #u2 = self.up2(u1, d6)
-        u3 = self.up3(d6, d5)
-        u4 = self.up4(u3, d4)
-        u5 = self.up5(u4, d3)
-        u6 = self.up6(u5, d2)
-        u7 = self.up7(u6, d1_5)
-        u8 = self.up8(u7, d1)
-        u9 = self.up9(u8, d0_5)
+        u1 = self.up1(d6, d5)
+        u2 = self.up2(u1, d4)
+        u3 = self.up3(u2, d3)
+        u4 = self.up4(u3, d2)
+        u5 = self.up5(u4, d1)
+        u6 = self.up6(u5, d0_5)
+        u7 = self.final(u6)
+        u8 = nn.functional.interpolate(u7, size=(52, 49, 49), mode=interpolation_mode)
 
-        u10 = nn.functional.interpolate(u9, size=(20, 17, 17), mode=interpolation_mode)
-
-        return self.final(u10)
+        return u8
 
 
 ##############################
@@ -168,18 +156,18 @@ class GeneratorWideUNet(nn.Module):
         self.down1 = WideUNetDown(1, 24, normalize=False, stride=2, kernel_size=(7, 5, 5))
         self.down2 = WideUNetDown(24, 48, kernel_size=4,  stride=2)
         self.down3 = WideUNetDown(48, 96,  kernel_size=4, stride=2)
-        self.down4 = WideUNetDown(96, 96, dropout=0.5, kernel_size=3, stride=1)#, normalize=False)
+        self.down4 = WideUNetDown(96, 96, dropout=0.5, kernel_size=2, stride=2)
         self.down5 = WideUNetDown(96, 96, dropout=0.5, kernel_size=3, stride=1, normalize=False)
-        self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
+        #self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
-        self.up1 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
-        self.up2 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
-        self.up3 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
+        #self.up1 = WideUNetUp(192, 96, dropout=0.5, kernel_size=3, stride=1)
+        self.up2 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
+        self.up3 = WideUNetUp(192, 96, dropout=0.5, kernel_size=2, stride=2)
         self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=1)
         self.up5 = WideUNetUp(96, 24, kernel_size=4, stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.ConvTranspose3d(48, 1, kernel_size=6, stride=2, padding=1),
+            nn.ConvTranspose3d(48, 1, kernel_size=4, stride=2, padding=2),
             nn.Tanh(),
         )
 
@@ -191,10 +179,10 @@ class GeneratorWideUNet(nn.Module):
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
-        d6 = self.down6(d5)
+        #d6 = self.down6(d5)
 
-        u1 = self.up1(d6, d5)
-        u2 = self.up2(u1, d4)
+        #u1 = self.up1(d6, d5)
+        u2 = self.up2(d5, d4)
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
         u5 = self.up5(u4, d1)
@@ -223,8 +211,8 @@ class Discriminator(nn.Module):
 
         self.model = nn.Sequential(
             *discriminator_block(2, 24, kernel_size=3, stride=2,  normalization=False, padding=0),
-            *discriminator_block(24, 48, kernel_size=3, stride=2, padding=0),
-            *discriminator_block(48, 96, kernel_size=3, stride=2, padding=0),
+            *discriminator_block(24, 48, kernel_size=3, stride=1, padding=0),
+            *discriminator_block(48, 96, kernel_size=3, stride=1, padding=0),
             #*discriminator_block(96, 96),
             nn.Conv3d(96, 1, kernel_size=3, stride=1, bias=False, padding=0),
             nn.Sigmoid()

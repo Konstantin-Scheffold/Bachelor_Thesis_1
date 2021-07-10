@@ -25,9 +25,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=12, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=12, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -43,7 +43,7 @@ opt = parser.parse_args()
 print(opt)
 
 # validation = True
-lambda_pixel = 30 # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 3 # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, 17, 16, 16)
@@ -176,12 +176,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Real loss
 
-        pred_real = discriminator(real_PD.detach(), real_CT.detach())
+        pred_real = discriminator(real_PD, real_CT)
         loss_real = criterion_GAN(pred_real, valid)
         D_accuracy_real.append(np.round(np.mean(pred_real.cpu().detach().numpy())))
 
         # Fake loss
-        pred_fake = discriminator(fake_PD.detach(), real_CT.detach())
+        pred_fake = discriminator(fake_PD.detach(), real_CT)
         loss_fake = criterion_GAN(pred_fake, fake)
         D_accuracy_fake.append(np.round(np.mean((valid-pred_fake).cpu().detach().numpy())))
 
@@ -301,7 +301,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       .format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7)))
-            plt.ylim(0, 2)
+            plt.ylim(0, 1.25)
             plt.legend()
 
             # plot Discriminator Accuracy
