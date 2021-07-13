@@ -54,7 +54,7 @@ os.makedirs("CTtoPD/saved_models/%s" % opt.dataset_name, exist_ok=True)
 cuda = True if torch.cuda.is_available() else False
 
 def criterion_pixelwise(output, target):
-    loss = torch.mean((output - target)**4)
+    loss = torch.mean(torch.abs((output - target)**3))
     return torch.tensor(loss, device=torch.device('cuda'))
 
 # Loss functions
@@ -264,7 +264,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 5 == 0:
+        if i % 10 == 0:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))

@@ -14,12 +14,12 @@ if load_model:
 
     val_dataloader = DataLoader(
         ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
-        batch_size=8,
+        batch_size=16,
         shuffle=True,
     )
-    generator = GeneratorWideUNet()
+    generator = GeneratorUNet()
 
-    generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\PDtoCT\saved_models\facades\generator_5.pth'))
+    generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\PDtoCT\saved_models\facades\generator_11.pth'))
     generator.cuda()
     imgs = next(iter(val_dataloader))
     real_CT = imgs["PD"].type(Tensor)
@@ -46,14 +46,14 @@ else:
 
 
     plt.subplot(3, 3, 1)
-    plt.title('x-axis')
+    plt.title('z-axis')
     plt.ylabel('input')
     plt.imshow(real_CT[int(np.size(real_CT, 0)/2), :, :])
     plt.subplot(3, 3, 2)
-    plt.title('y-axis')
+    plt.title('x-axis')
     plt.imshow(real_CT[:, int(np.size(real_CT, 1)/2), :])
     plt.subplot(3, 3, 3)
-    plt.title('z-axis')
+    plt.title('y-axis')
     plt.imshow(real_CT[:, :, int(np.size(real_CT, 2)/2)])
     # plot real_PD
     plt.subplot(3, 3, 4)
