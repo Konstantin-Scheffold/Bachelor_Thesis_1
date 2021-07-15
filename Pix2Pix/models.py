@@ -147,7 +147,7 @@ class WideUNetUp(nn.Module):
             ]
         if dropout:
             layers.append(nn.Dropout(dropout))
-        layers.append(nn.ConvTranspose3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False, output_padding=output_padding))
+        layers.append(nn.ConvTranspose3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False))
         layers.append(nn.InstanceNorm3d(out_size))
         layers.append(nn.LeakyReLU(0.2, inplace=True))
 
@@ -165,24 +165,23 @@ class GeneratorWideUNet(nn.Module):
     def __init__(self):
         super(GeneratorWideUNet, self).__init__()
 
+        self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down1 = WideUNetDown(16, 32)
+        self.down2 = WideUNetDown(32, 48, stride=2, kernel_size=4)
+        self.down3 = WideUNetDown(48, 96, kernel_size=(5, 4, 4), stride=2)
+        self.down4 = WideUNetDown(96, 120,  kernel_size=4, stride=2)
+        self.down5 = UNetDown(120, 120, dropout=0.5, kernel_size=3, stride=1, normalize=False)
+        # self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
-        self.down0_5 = WideUNetDown(1, 24, normalize=False)
-        self.down1 = WideUNetDown(24, 48, stride=2, kernel_size=(7, 4, 4))
-        self.down2 = WideUNetDown(48, 96, kernel_size=4, stride=2)
-        self.down3 = WideUNetDown(96, 192,  kernel_size=4, stride=2)
-        self.down4 = WideUNetDown(192, 192, kernel_size=4, stride=2)
-        self.down5 = WideUNetDown(192, 192, dropout=0.5, kernel_size=3, stride=1, normalize=False)
-        #self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
-
-        #self.up1 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
-        self.up2 = WideUNetUp(192, 192, dropout=0.5, kernel_size=3, stride=1)
-        self.up3 = WideUNetUp(384, 192, dropout=0.5, kernel_size=4, stride=2)
-        self.up4 = WideUNetUp(384, 96, kernel_size=3, stride=1, padding=1)
-        self.up5 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=1)
-        self.up6 = WideUNetUp(96, 24)
+        # self.up1 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
+        self.up2 = UNetUp(120, 120, dropout=0.5, kernel_size=3, stride=1)
+        self.up3 = WideUNetUp(240, 96, kernel_size=4, stride=2, padding=1)
+        self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up5 = WideUNetUp(96, 32, kernel_size=4, stride=2)
+        self.up6 = UNetUp(64, 16, kernel_size=3, stride=1)
 
         self.final = nn.Sequential(
-            nn.Conv3d(48, 1, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 

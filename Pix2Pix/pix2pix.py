@@ -23,11 +23,12 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=12, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=25, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=12, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=6, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -43,10 +44,10 @@ opt = parser.parse_args()
 print(opt)
 
 # validation = True
-lambda_pixel = 3 # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 5 # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
-# Calculate output of image discriminator (PatchGAN)
-patch = (1, 17, 16, 16)
+disc_reset_interval = 4
+patch = (1, 17, 16, 16)# Calculate output of image discriminator (PatchGAN)
 
 os.makedirs("CTtoPD/images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("CTtoPD/saved_models/%s" % opt.dataset_name, exist_ok=True)
@@ -88,13 +89,12 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=200, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.5, patience=800, cooldown=0, verbose=True, min_lr=5*10**-6)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
 transforms_ = [
     transforms.ToTensor()
-    #transforms.Normalize(mean=-1, std=2)
 ]
 # Configure dataloaders
 dataloader = DataLoader(
@@ -134,6 +134,9 @@ D_accuracy_real, D_accuracy_fake, D_accuracy_fake_img, D_accuracy_real_img = [],
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
+    #if epoch == 10 or epoch == 17:
+    #   discriminator.apply(weights_init_normal)
+
     for i, batch in enumerate(dataloader):
 
         # Model inputs
@@ -259,12 +262,13 @@ for epoch in range(opt.epoch, opt.n_epochs):
                 i,
                 len(dataloader),
                 loss_D.item(),
+
                 loss_G.item(),
                 time_left,
             )
         )
 
-        if i % 10 == 0:
+        if i % 50 == 0:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -282,7 +286,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 20 == 0 and len(loss_steps_D) > 2:
+        if i % 150 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
