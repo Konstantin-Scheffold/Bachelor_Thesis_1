@@ -1,19 +1,10 @@
 import argparse
-import os
-import numpy as np
-import math
-import itertools
+
 import time
 import datetime
 import sys
 import matplotlib.pyplot as plt
 
-import torchvision.transforms as transforms
-from torchvision.utils import save_image
-from torchvision.transforms.functional import InterpolationMode
-from torch.utils.data import DataLoader
-
-from torchvision import datasets
 from torch.autograd import Variable
 
 from models import *
@@ -23,12 +14,11 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
-
 parser = argparse.ArgumentParser()
-parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=25, help="number of epochs of training")
+parser.add_argument("--epoch", type=int, default=30, help="epoch to start training from")
+parser.add_argument("--n_epochs", type=int, default=50, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=6, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=4, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -44,23 +34,23 @@ opt = parser.parse_args()
 print(opt)
 
 # validation = True
-lambda_pixel = 5 # Loss weight of L1 pixel-wise loss between translated image and real image
-Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
-disc_reset_interval = 4
-patch = (1, 17, 16, 16)# Calculate output of image discriminator (PatchGAN)
+lambda_pixel = 600  # Loss weight of L1 pixel-wise loss between translated image and real image
+Loss_D_rate = 1  # slows down Discriminator loss to balance Disc and Gen
+patch = (1, 18, 17, 17)  # Calculate output of image discriminator (PatchGAN)
 
-os.makedirs("CTtoPD/images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("CTtoPD/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
 cuda = True if torch.cuda.is_available() else False
 
+
 def criterion_pixelwise(output, target):
     loss = torch.mean(torch.abs((output - target)**3))
-    return torch.tensor(loss, device=torch.device('cuda'))
+    return loss.type(torch.cuda.FloatTensor).requires_grad_(True)
+
 
 # Loss functions
 criterion_GAN = torch.nn.MSELoss()
-#criterion_pixelwise = torch.nn.MSELoss()
+# criterion_pixelwise = torch.nn.L1Loss()
 
 
 # Initialize generator and discriminator
@@ -74,12 +64,12 @@ if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
     criterion_GAN.cuda()
-    #criterion_pixelwise.cuda()
+    # criterion_pixelwise.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load("CTtoPD/saved_models/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
-    discriminator.load_state_dict(torch.load("CTtoPD/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    generator.load_state_dict(torch.load("CTtoPD/saved_models_MSE_custom_long/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    discriminator.load_state_dict(torch.load("CTtoPD/saved_models_MSE_custom_long/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -108,20 +98,11 @@ val_dataloader = DataLoader(
     shuffle=True,
 )
 
-def sample_images(imgs, batches_done):
-    """Saves a generated sample from the validation set"""
-    real_CT = imgs["CT"].type(Tensor)
-    real_PD = imgs["PD"].type(Tensor)
-    fake_PD = generator(real_CT)
-    sub_data_CT_PD = np.array([real_CT, real_PD, fake_PD], dtype=object)
-    np.save("CTtoPD/images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
-
-
 # ----------
 #  Training documentation
 # ----------
 
-loss_batch_G, loss_batch_D, loss_batch_GAN, loss_batch_pixel = [], [], [], [],
+loss_batch_G, loss_batch_D, loss_batch_GAN, loss_batch_pixel = [], [], [], []
 loss_steps_G, loss_steps_D, loss_steps_pixel, loss_steps_GAN = [], [], [], []
 loss_batch_G_val, loss_batch_D_val, loss_batch_GAN_val, loss_batch_pixel_val = [], [], [], []
 loss_steps_G_val, loss_steps_D_val, loss_steps_pixel_val, loss_steps_GAN_val = [], [], [], []
@@ -134,8 +115,8 @@ D_accuracy_real, D_accuracy_fake, D_accuracy_fake_img, D_accuracy_real_img = [],
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
-    #if epoch == 10 or epoch == 17:
-    #   discriminator.apply(weights_init_normal)
+    if epoch == 31 or epoch == 45:
+       discriminator.apply(weights_init_normal)
 
     for i, batch in enumerate(dataloader):
 
@@ -236,7 +217,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_D_val = Loss_D_rate * (loss_real_val + loss_fake_val)
         loss_batch_D_val.append(loss_D_val.item())
 
-        # scheduler_D.step(loss_D_val)
 
         # --------------
         #  Log Progress
@@ -268,7 +248,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 50 == 0:
+        if i % 100 == 0 and len(loss_batch_D) > 2:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -286,7 +266,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 150 == 0 and len(loss_steps_D) > 2:
+        if i % 300 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -305,7 +285,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       .format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7)))
-            plt.ylim(0, 1.25)
+            plt.ylim(0, 2)
             plt.legend()
 
             # plot Discriminator Accuracy
@@ -340,11 +320,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.subplot(2, 6, 12)
             plt.imshow(fake_PD_val[:, :, int(np.size(fake_PD_val, 2) / 2)])
             plt.show()
-
-            # If at sample interval save image
-    if epoch % opt.checkpoint_interval == 0:
-        imgs = next(iter(val_dataloader))
-        sample_images(imgs, epoch)
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints

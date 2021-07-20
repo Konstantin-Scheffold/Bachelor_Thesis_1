@@ -25,7 +25,7 @@ class UNetDown(nn.Module):
         layers = [nn.Conv3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
@@ -40,7 +40,7 @@ class UNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False),
             nn.InstanceNorm3d(out_size),
-            nn.LeakyReLU(0.2, inplace=True)
+            nn.LeakyReLU(0.2)
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -56,29 +56,29 @@ class GeneratorUNet(nn.Module):
     def __init__(self):
         super(GeneratorUNet, self).__init__()
 
-        self.down0_5 = UNetDown(1, 1, kernel_size=(3, 4, 4),  padding=(0, 2, 2), normalize=False)
-        self.down1 = UNetDown(1, 24, kernel_size=(6, 5, 5), stride=2, padding=1)
-        self.down1_5 = UNetDown(24, 48, kernel_size=(3, 4, 4), stride=2)
-        self.down2 = UNetDown(48, 96, kernel_size=4, stride=2)
-        self.down3 = UNetDown(96, 192, kernel_size=4, dropout=0.5, stride=2)
-        self.down4 = UNetDown(192, 192, dropout=0.5, stride=1)
-        self.down5 = UNetDown(192, 192, dropout=0.5, stride=1)
-        self.down6 = UNetDown(192, 192, dropout=0.5, stride=1, normalize=False)
+        self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down1 = UNetDown(16, 32, stride=2, padding=1)
+        self.down1_5 = UNetDown(32, 64)
+        self.down2 = UNetDown(64, 128, kernel_size=(5, 4, 4), stride=2)
+        self.down3 = UNetDown(128, 192, kernel_size=4, stride=2)
+        self.down4 = UNetDown(192, 256)
+        self.down5 = UNetDown(256, 320, dropout=0.5, kernel_size=4, stride=2)
+        self.down6 = UNetDown(320, 320, dropout=0.5, normalize=False)
         #self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
         #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
 
         #self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
         #self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
-        self.up3 = UNetUp(192, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up4 = UNetUp(384, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up5 = UNetUp(384, 192, dropout=0.5, kernel_size=3, stride=1, padding=1)
-        self.up6 = UNetUp(384, 96, dropout=0.5, kernel_size=4, stride=2, padding=1)
-        self.up7 = UNetUp(192, 48, kernel_size=4, stride=2, padding=1)
-        self.up8 = UNetUp(96, 24, kernel_size=4, stride=2, padding=1)
-        self.up9 = UNetUp(48, 1, kernel_size=4, stride=2, padding=0)
+        self.up3 = UNetUp(320, 320, dropout=0.5)
+        self.up4 = UNetUp(640, 256, kernel_size=4, stride=2, padding=1)
+        self.up5 = UNetUp(512, 192)
+        self.up6 = UNetUp(384, 128, kernel_size=4, stride=2, padding=1)
+        self.up7 = UNetUp(256, 64, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up8 = UNetUp(128, 32)
+        self.up9 = UNetUp(64, 16, kernel_size=4, stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Conv3d(2, 1, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
@@ -120,14 +120,14 @@ class WideUNetDown(nn.Module):
         super(WideUNetDown, self).__init__()
         layers = [nn.Conv3d(in_size, in_size, kernel_size=3, stride=1, padding=1, bias=False),
                   nn.InstanceNorm3d(in_size),
-                  nn.LeakyReLU(0.2, inplace=True)]
+                  nn.LeakyReLU(0.2)]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
         layers.append(nn.Conv3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False))
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -143,13 +143,13 @@ class WideUNetUp(nn.Module):
         layers = [
             nn.ConvTranspose3d(in_size, in_size, kernel_size=3, stride=1, padding=1, bias=False),
             nn.InstanceNorm3d(in_size),
-            nn.LeakyReLU(0.2, inplace=True)
+            nn.LeakyReLU(0.2)
             ]
         if dropout:
             layers.append(nn.Dropout(dropout))
         layers.append(nn.ConvTranspose3d(in_size, out_size, kernel_size=kernel_size, stride=stride, padding=padding, bias=False))
         layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
 
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -227,11 +227,12 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(2, 24, stride=2,  normalization=False, padding=0),
-            *discriminator_block(24, 48, stride=1, padding=0),
+            *discriminator_block(2, 24, stride=1,  normalization=False, padding=0),
+            *discriminator_block(24, 48, stride=2, padding=0),
             *discriminator_block(48, 96, stride=1, padding=0),
-            #*discriminator_block(96, 96),
-            nn.Conv3d(96, 1, kernel_size=5, stride=1, bias=False, padding=0),
+
+            *discriminator_block(96, 120),
+            nn.Conv3d(120, 1, kernel_size=5, stride=1, bias=False, padding=0),
             nn.Sigmoid()
         )
 
@@ -256,7 +257,7 @@ class FullCon_layer(nn.Module):
         layers = [nn.Linear(in_size, out_size, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm3d(out_size))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)

@@ -24,7 +24,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=25, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=50, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=16, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
@@ -47,7 +47,6 @@ Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, 19, 18, 18)
 
-os.makedirs("PDtoCT/images/%s" % opt.dataset_name, exist_ok=True)
 os.makedirs("PDtoCT/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
 
@@ -107,16 +106,6 @@ val_dataloader = DataLoader(
     batch_size=opt.batch_size,
     shuffle=True,
 )
-
-
-def sample_images(imgs, batches_done):
-    """Saves a generated sample from the validation set"""
-    real_CT = imgs["CT"].type(Tensor)
-    real_PD = imgs["PD"].type(Tensor)
-    fake_PD = generator(real_CT)
-    sub_data_CT_PD = np.array([real_CT, real_PD, fake_PD], dtype=object)
-    np.save("PDtoCT/images/%s/%s" % (opt.dataset_name, batches_done), sub_data_CT_PD)
-
 
 # ----------
 #  Training documentation
@@ -247,7 +236,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         time_left_accumulate.append(datetime.timedelta(seconds=batches_left * (time.time() - prev_time)))
         prev_time = time.time()
 
-        if i % 20 == 0:
+        if i % 50 == 0:
             time_left = np.mean(time_left_accumulate)
             time_left_accumulate = []
 
@@ -265,7 +254,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 5 == 0:
+        if i % 100 == 0:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -337,11 +326,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.subplot(2, 6, 12)
             plt.imshow(fake_PD_val[:, :, int(np.size(fake_PD_val, 2) / 2)])
             plt.show()
-
-            # If at sample interval save image
-    if epoch % opt.checkpoint_interval == 0:
-        imgs = next(iter(val_dataloader))
-        sample_images(imgs, epoch)
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
