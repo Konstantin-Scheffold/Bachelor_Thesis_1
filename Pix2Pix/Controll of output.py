@@ -7,9 +7,9 @@ from datasets import *
 from torch.utils.data import DataLoader
 
 load_model = True
-print_3d_file = True
+print_3d_file = False
 print_cross_sections = True
-number_check = True
+number_check = False
 name = 'WideUNet_MSE_MSE'
 
 for i in range(5):
@@ -21,9 +21,9 @@ for i in range(5):
             batch_size=16,
             shuffle=True,
         )
-        generator = GeneratorWideUNet()
+        generator = FinalUNet()
 
-        generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\archiv\saved_models_WideUnet_MSE_MSE\facades\generator_14.pth'))
+        generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\saved_models_mixed_abwechselnd\facades\generator_18.pth'))
         generator.cuda()
 
         imgs = next(iter(val_dataloader))

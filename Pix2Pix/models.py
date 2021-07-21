@@ -1,8 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-import torchvision.transforms
-import torchvision.transforms as transforms
 
 interpolation_mode = 'trilinear'
 
@@ -56,58 +54,57 @@ class GeneratorUNet(nn.Module):
     def __init__(self):
         super(GeneratorUNet, self).__init__()
 
-        self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
-        self.down1 = UNetDown(16, 32, stride=2, padding=1)
-        self.down1_5 = UNetDown(32, 64)
-        self.down2 = UNetDown(64, 128, kernel_size=(5, 4, 4), stride=2)
-        self.down3 = UNetDown(128, 192, kernel_size=4, stride=2)
-        self.down4 = UNetDown(192, 256)
-        self.down5 = UNetDown(256, 320, dropout=0.5, kernel_size=4, stride=2)
-        self.down6 = UNetDown(320, 320, dropout=0.5, normalize=False)
-        #self.down7 = UNetDown(512, 512, dropout=0.5, stride=1)
+        #self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down1 = UNetDown(1, 24, kernel_size=(7, 4, 4), normalize=False)
+        #self.down1_5 = UNetDown(32, 64)
+        self.down2 = UNetDown(24, 48, kernel_size=4, stride=2)
+        self.down3 = UNetDown(48, 96, kernel_size=4, stride=2)
+        self.down4 = UNetDown(96, 192, kernel_size=4, stride=2)
+        self.down5 = UNetDown(192, 192, dropout=0.5)
+        self.down6 = UNetDown(192, 192, dropout=0.5)
+        self.down7 = UNetDown(192, 192, dropout=0.5, normalize=False)
         #self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, stride=1)
 
         #self.up1 = UNetUp(512, 512, dropout=0.5, stride=1)
-        #self.up2 = UNetUp(1024, 512, dropout=0.5, stride=1)
-        self.up3 = UNetUp(320, 320, dropout=0.5)
-        self.up4 = UNetUp(640, 256, kernel_size=4, stride=2, padding=1)
-        self.up5 = UNetUp(512, 192)
-        self.up6 = UNetUp(384, 128, kernel_size=4, stride=2, padding=1)
-        self.up7 = UNetUp(256, 64, kernel_size=4, stride=2, padding=(0, 1, 1))
-        self.up8 = UNetUp(128, 32)
-        self.up9 = UNetUp(64, 16, kernel_size=4, stride=2, padding=1)
+        self.up2 = UNetUp(192, 192, dropout=0.5)
+        self.up3 = UNetUp(384, 192, dropout=0.5)
+        self.up4 = UNetUp(384, 192, dropout=0.5)
+        self.up5 = UNetUp(384, 96, kernel_size=4, stride=2)
+        self.up6 = UNetUp(192, 48, kernel_size=4, stride=2)
+        self.up7 = UNetUp(96, 24, kernel_size=4, stride=2)
+        #self.up8 = UNetUp(128, 32)
+        #self.up9 = UNetUp(64, 16, kernel_size=4, stride=2, padding=1)
 
         self.final = nn.Sequential(
-            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(48, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
-        d0_5 = self.down0_5(x)
-        d1 = self.down1(d0_5)
-        d1_5 = self.down1_5(d1)
-        d2 = self.down2(d1_5)
+        #d0_5 = self.down0_5(x)
+        d1 = self.down1(x)
+        #d1_5 = self.down1_5(d1)
+        d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        #d7 = self.down7(d6)
+        d7 = self.down7(d6)
         #d8 = self.down8(d7)
 
         #u1 = self.up1(d8, d7)
-        #u2 = self.up2(u1, d6)
-        u3 = self.up3(d6, d5)
+        u2 = self.up2(d7, d6)
+        u3 = self.up3(u2, d5)
         u4 = self.up4(u3, d4)
         u5 = self.up5(u4, d3)
         u6 = self.up6(u5, d2)
-        u7 = self.up7(u6, d1_5)
-        u8 = self.up8(u7, d1)
-        u9 = self.up9(u8, d0_5)
+        u7 = self.up7(u6, d1)
+        u8 = self.final(u7)
 
-        u10 = nn.functional.interpolate(u9, size=(20, 17, 17), mode=interpolation_mode)
+        u10 = nn.functional.interpolate(u8, size=(20, 17, 17), mode=interpolation_mode)
 
-        return self.final(u10)
+        return u10
 
 
 ##############################
@@ -165,23 +162,23 @@ class GeneratorWideUNet(nn.Module):
     def __init__(self):
         super(GeneratorWideUNet, self).__init__()
 
-        self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
-        self.down1 = WideUNetDown(16, 32)
-        self.down2 = WideUNetDown(32, 48, stride=2, kernel_size=4)
-        self.down3 = WideUNetDown(48, 96, kernel_size=(5, 4, 4), stride=2)
-        self.down4 = WideUNetDown(96, 120,  kernel_size=4, stride=2)
-        self.down5 = UNetDown(120, 120, dropout=0.5, kernel_size=3, stride=1, normalize=False)
+        #self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down1 = WideUNetDown(1, 24, kernel_size=(7, 5, 5), stride=2, normalize=False)
+        self.down2 = WideUNetDown(24, 48, kernel_size=4, stride=2)
+        self.down3 = WideUNetDown(48, 96, kernel_size=4, stride=2)
+        self.down4 = WideUNetDown(96, 96, dropout=0.5)
+        self.down5 = UNetDown(96, 96, dropout=0.5, normalize=False)
         # self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
         # self.up1 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
-        self.up2 = UNetUp(120, 120, dropout=0.5, kernel_size=3, stride=1)
-        self.up3 = WideUNetUp(240, 96, kernel_size=4, stride=2, padding=1)
-        self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=(0, 1, 1))
-        self.up5 = WideUNetUp(96, 32, kernel_size=4, stride=2)
-        self.up6 = UNetUp(64, 16, kernel_size=3, stride=1)
+        self.up2 = UNetUp(96, 96, dropout=0.5)
+        self.up3 = WideUNetUp(192, 96, dropout=0.5)
+        self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2)
+        self.up5 = WideUNetUp(96, 24, kernel_size=4, stride=2)
+        #self.up6 = UNetUp(96, 24, kernel_size=3, stride=1)
 
         self.final = nn.Sequential(
-            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(48, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
@@ -189,8 +186,8 @@ class GeneratorWideUNet(nn.Module):
         # U-Net generator with skip connections from encoder to decoder
         #noise = torch.normal(0, torch.std(x)/2, list(x.size()), device=torch.device('cuda'), requires_grad=True)
 
-        d0_5 = self.down0_5(x)#+noise)
-        d1 = self.down1(d0_5)
+        #d0_5 = self.down0_5(x)#+noise)
+        d1 = self.down1(x)
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
@@ -202,11 +199,66 @@ class GeneratorWideUNet(nn.Module):
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
         u5 = self.up5(u4, d1)
-        u6 = self.up6(u5, d0_5)
-        u7 = self.final(u6)
+        #u6 = self.up6(u5, d0_5)
+        u7 = self.final(u5)
         u8 = nn.functional.interpolate(u7, size=(20, 17, 17), mode=interpolation_mode)
 
         return u8
+
+##############################
+#        FinalUNet
+##############################
+
+class FinalUNet(nn.Module):
+    def __init__(self):
+        super(FinalUNet, self).__init__()
+
+        self.down1 = UNetDown(1, 10, kernel_size=(3, 4, 4), normalize=False)
+        self.down2 = UNetDown(10, 25)
+        self.down3 = WideUNetDown(25, 40, stride=2, kernel_size=4)
+        self.down4 = UNetDown(40, 60)
+        self.down5 = WideUNetDown(60, 80, kernel_size=(5, 4, 4), stride=2)
+        self.down6 = UNetDown(80, 100)
+        self.down7 = WideUNetDown(100, 120, dropout=0.25, kernel_size=4, stride=2)
+        self.down8 = UNetDown(120, 120, dropout=0.5, kernel_size=3, stride=1, normalize=False)
+
+        self.up1 = UNetUp(120, 120, dropout=0.5, kernel_size=3, stride=1)
+        self.up2 = WideUNetUp(240, 100, dropout=0.25, kernel_size=4, stride=2)
+        self.up3 = UNetUp(200, 80)
+        self.up4 = WideUNetUp(160, 60, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up5 = UNetUp(120, 40)
+        self.up6 = WideUNetUp(80, 25, kernel_size=4, stride=2)
+        self.up7 = UNetUp(50, 10)
+
+        self.final = nn.Sequential(
+            nn.Conv3d(20, 1, kernel_size=3, stride=1, padding=1),
+            nn.Tanh(),
+        )
+
+    def forward(self, x):
+        # U-Net generator with skip connections from encoder to decoder
+        # noise = torch.normal(0, torch.std(x)/2, list(x.size()), device=torch.device('cuda'), requires_grad=True)
+
+        d1 = self.down1(x)# +noise)
+        d2 = self.down2(d1)
+        d3 = self.down3(d2)
+        d4 = self.down4(d3)
+        d5 = self.down5(d4)
+        d6 = self.down6(d5)
+        d7 = self.down7(d6)
+        d8 = self.down8(d7)
+
+        u1 = self.up1(d8, d7)
+        u2 = self.up2(u1, d6)
+        u3 = self.up3(u2, d5)
+        u4 = self.up4(u3, d4)
+        u5 = self.up5(u4, d3)
+        u6 = self.up6(u5, d2)
+        u7 = self.up7(u6, d1)
+        u8 = self.final(u7)
+        u9 = nn.functional.interpolate(u8, size=(20, 17, 17), mode=interpolation_mode)
+
+        return u9
 
 
 ##############################
