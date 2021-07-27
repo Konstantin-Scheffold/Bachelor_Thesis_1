@@ -6,43 +6,49 @@ from models import *
 from datasets import *
 from torch.utils.data import DataLoader
 
-load_model = True
-print_3d_file = False
+
+print_3d_file = True
 print_cross_sections = True
 number_check = False
-name = 'best_final_noise'
+name = 'ideal_MSE_L1'
 
-for i in range(10):
-    if load_model:
-        Tensor = torch.cuda.FloatTensor
 
-        val_dataloader = DataLoader(
-            ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
-            batch_size=2,
-            shuffle=True,
-        )
-        generator = FinalUNet()
+Tensor = torch.FloatTensor
 
-        generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\used\saved_models_MSE_custom_long\facades\discriminator_48.pth'))
-        generator.cuda()
+generator = FinalUNet()
+generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\saved_models\facades\generator_8.pth', map_location=torch.device('cpu')))
 
-        imgs = next(iter(val_dataloader))
-        real_PD = imgs["PD"].type(Tensor)
-        real_CT = imgs["CT"].type(Tensor)
-        fake_PD = generator(real_CT)[0].cpu().squeeze().detach().numpy()
-        real_PD = real_PD[0].cpu().squeeze().detach().numpy()
-        real_CT = real_CT[0].cpu().squeeze().detach().numpy()
+if print_cross_sections or print_3d_file:
+    val_dataloader = DataLoader(
+        ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
+        batch_size=16,
+        shuffle=True,
+    )
 
+    imgs = next(iter(val_dataloader))
+    real_PD = imgs["PD"].type(Tensor)
+    real_CT = imgs["CT"].type(Tensor)
+    fake_PD_batch = generator(real_CT).squeeze().detach().numpy()
+    real_PD_batch = real_PD.squeeze().detach().numpy()
+    real_CT_batch = real_CT.squeeze().detach().numpy()
+
+for i in range(15):
 
     if print_3d_file:
+        fake_PD = fake_PD_batch[i]
+        real_PD = real_PD_batch[i]
+        real_CT = real_CT_batch[i]
         Data_PD.data = np.array(list(real_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\best_final_noise\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
 
         Data_PD.data = np.array(list(fake_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\best_final_noise\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
+
 
     if print_cross_sections:
-
+        fake_PD = fake_PD_batch[i]
+        real_PD = real_PD_batch[i]
+        real_CT = real_CT_batch[i]
         plt.subplot(3, 3, 1)
         plt.title('z-axis')
         plt.ylabel('input')
@@ -84,20 +90,31 @@ for i in range(10):
         plt.subplot(3, 3, 9)
         plt.ylabel('generated')
         plt.imshow(fake_PD[:, :, int(np.size(fake_PD, 2)/2)])
-        #plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\best_final_noise\{}_{}'.format(name, i))
-        plt.show()
+        plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_{}'.format(name, i))
+        #plt.show()
 
 if number_check:
+
+    val_dataloader = DataLoader(
+        ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
+        batch_size=50,
+        shuffle=True,
+    )
+
+    imgs = next(iter(val_dataloader))
+    real_PD = imgs["PD"].type(Tensor)
+    real_CT = imgs["CT"].type(Tensor)
+    fake_PD_batch = generator(real_CT).squeeze().detach().numpy()
+    real_PD_batch = real_PD.squeeze().detach().numpy()
+    real_CT_batch = real_CT.squeeze().detach().numpy()
     mean_linear = list([])
     mean_cube = list([])
-    for i in range(100):
 
-        imgs = next(iter(val_dataloader))
-        real_PD = imgs["PD"].type(Tensor)
-        real_CT = imgs["CT"].type(Tensor)
-        fake_PD = generator(real_CT)[0].cpu().squeeze().detach().numpy()
-        real_PD = real_PD[0].cpu().squeeze().detach().numpy()
-        real_CT = real_CT[0].cpu().squeeze().detach().numpy()
+    for i in range(50):
+        fake_PD = fake_PD_batch[i]
+        real_PD = real_PD_batch[i]
+        real_CT = real_CT_batch[i]
+
         mean_linear.append(np.mean(np.abs(fake_PD - real_PD)))
         mean_cube.append(np.mean(np.abs(fake_PD - real_PD)**3))
 

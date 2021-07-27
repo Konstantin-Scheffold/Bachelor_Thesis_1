@@ -208,22 +208,21 @@ class GeneratorWideUNet(nn.Module):
 ##############################
 #        FinalUNet
 ##############################
-
 class FinalUNet(nn.Module):
     def __init__(self):
         super(FinalUNet, self).__init__()
 
         self.down1 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
         self.down2 = WideUNetDown(16, 32)
-        self.down3 = WideUNetDown(32, 48, stride=2, kernel_size=4)
-        self.down4 = WideUNetDown(48, 96, kernel_size=(5, 4, 4), stride=2)
-        self.down5 = WideUNetDown(96, 120, kernel_size=4, stride=2)
-        self.down6 = UNetDown(120, 120, dropout=0.5, normalize=False)
+        self.down3 = WideUNetDown(32, 60, stride=2, kernel_size=4)
+        self.down4 = WideUNetDown(60, 90, kernel_size=(5, 4, 4), stride=2)
+        self.down5 = WideUNetDown(90, 130, kernel_size=4, stride=2)
+        self.down6 = UNetDown(130, 130, dropout=0.5, normalize=False)
 
-        self.up1 = UNetUp(120, 120, dropout=0.5)
-        self.up2 = WideUNetUp(240, 96, kernel_size=4, stride=2, padding=1)
-        self.up3 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=(0, 1, 1))
-        self.up4 = WideUNetUp(96, 32, kernel_size=4, stride=2)
+        self.up1 = UNetUp(130, 130, dropout=0.5)
+        self.up2 = WideUNetUp(260, 90, kernel_size=4, stride=2, padding=1)
+        self.up3 = WideUNetUp(180, 60, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up4 = WideUNetUp(120, 32, kernel_size=4, stride=2)
         self.up5 = UNetUp(64, 16)
 
         self.final = nn.Sequential(
@@ -233,9 +232,9 @@ class FinalUNet(nn.Module):
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
-        noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
+        #noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
 
-        d1 = self.down1(x +noise)
+        d1 = self.down1(x)# +noise)
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
@@ -247,6 +246,50 @@ class FinalUNet(nn.Module):
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
         u5 = self.up5(u4, d1)
+        u6 = self.final(u5)
+        u7 = nn.functional.interpolate(u6, size=(20, 17, 17), mode=interpolation_mode)
+
+        return u7
+
+
+class FinalUNet_long(nn.Module):
+    def __init__(self):
+        super(FinalUNet_long, self).__init__()
+
+        self.down0_5 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down1 = WideUNetDown(16, 32)
+        self.down2 = WideUNetDown(32, 48, stride=2, kernel_size=4)
+        self.down3 = WideUNetDown(48, 96, kernel_size=(5, 4, 4), stride=2)
+        self.down4 = WideUNetDown(96, 120, kernel_size=4, stride=2)
+        self.down5 = UNetDown(120, 120, dropout=0.5, normalize=False)
+
+        self.up2 = UNetUp(120, 120, dropout=0.5)
+        self.up3 = WideUNetUp(240, 96, kernel_size=4, stride=2, padding=1)
+        self.up4 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up5 = WideUNetUp(96, 32, kernel_size=4, stride=2)
+        self.up6 = UNetUp(64, 16)
+
+        self.final = nn.Sequential(
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
+            nn.Tanh(),
+        )
+
+    def forward(self, x):
+        # U-Net generator with skip connections from encoder to decoder
+        noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
+
+        d1 = self.down0_5(x +noise)
+        d2 = self.down1(d1)
+        d3 = self.down2(d2)
+        d4 = self.down3(d3)
+        d5 = self.down4(d4)
+        d6 = self.down5(d5)
+
+        u1 = self.up2(d6, d5)
+        u2 = self.up3(u1, d4)
+        u3 = self.up4(u2, d3)
+        u4 = self.up5(u3, d2)
+        u5 = self.up6(u4, d1)
         u6 = self.final(u5)
         u7 = nn.functional.interpolate(u6, size=(20, 17, 17), mode=interpolation_mode)
 

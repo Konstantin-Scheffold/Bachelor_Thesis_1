@@ -34,7 +34,7 @@ opt = parser.parse_args()
 print(opt)
 
 # validation = True
-lambda_pixel = 250  # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 10  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1  # slows down Discriminator loss to balance Disc and Gen
 patch = (1, 18, 17, 17)  # Calculate output of image discriminator (PatchGAN)
 
@@ -43,19 +43,17 @@ os.makedirs("CTtoPD/saved_models/%s" % opt.dataset_name, exist_ok=True)
 cuda = True if torch.cuda.is_available() else False
 
 
-def criterion_pixelwise(output, target):
-    loss = torch.mean(torch.abs((output - target)**3))
-    return loss.type(torch.cuda.FloatTensor).requires_grad_(True)
-
-
+#def criterion_pixelwise(output, target):
+#    loss = torch.mean(torch.abs((output - target)**3))
+#    return loss.type(torch.cuda.FloatTensor).requires_grad_(True)
 # Loss functions
 
 criterion_GAN = torch.nn.MSELoss()
-# criterion_pixelwise = torch.nn.L1Loss()
+criterion_pixelwise = torch.nn.MSELoss()
 
 
 # Initialize generator and discriminator
-generator = FinalUNet()
+generator = FinalUNet_long()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -65,7 +63,7 @@ if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
     criterion_GAN.cuda()
-    # criterion_pixelwise.cuda()
+    criterion_pixelwise.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
@@ -286,7 +284,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.title('loss_curve lr:{},'
                       ' lambda_pixel:{}, lr_D_adjust{},'
                       .format(opt.lr, Loss_D_rate, np.round(lambda_pixel, 7)))
-            plt.ylim(0, 2)
+            plt.ylim(0, 1)
             plt.legend()
 
             # plot Discriminator Accuracy
