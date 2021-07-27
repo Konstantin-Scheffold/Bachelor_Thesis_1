@@ -213,52 +213,45 @@ class FinalUNet(nn.Module):
     def __init__(self):
         super(FinalUNet, self).__init__()
 
-        self.down1 = UNetDown(1, 10, kernel_size=(3, 4, 4), normalize=False)
-        self.down2 = UNetDown(10, 25)
-        self.down3 = WideUNetDown(25, 40, stride=2, kernel_size=4)
-        self.down4 = UNetDown(40, 60)
-        self.down5 = WideUNetDown(60, 80, kernel_size=(5, 4, 4), stride=2)
-        self.down6 = UNetDown(80, 100)
-        self.down7 = WideUNetDown(100, 120, dropout=0.25, kernel_size=4, stride=2)
-        self.down8 = UNetDown(120, 120, dropout=0.5, kernel_size=3, stride=1, normalize=False)
+        self.down1 = UNetDown(1, 16, kernel_size=(3, 4, 4), normalize=False)
+        self.down2 = WideUNetDown(16, 32)
+        self.down3 = WideUNetDown(32, 48, stride=2, kernel_size=4)
+        self.down4 = WideUNetDown(48, 96, kernel_size=(5, 4, 4), stride=2)
+        self.down5 = WideUNetDown(96, 120, kernel_size=4, stride=2)
+        self.down6 = UNetDown(120, 120, dropout=0.5, normalize=False)
 
-        self.up1 = UNetUp(120, 120, dropout=0.5, kernel_size=3, stride=1)
-        self.up2 = WideUNetUp(240, 100, dropout=0.25, kernel_size=4, stride=2)
-        self.up3 = UNetUp(200, 80)
-        self.up4 = WideUNetUp(160, 60, kernel_size=4, stride=2, padding=(0, 1, 1))
-        self.up5 = UNetUp(120, 40)
-        self.up6 = WideUNetUp(80, 25, kernel_size=4, stride=2)
-        self.up7 = UNetUp(50, 10)
+        self.up1 = UNetUp(120, 120, dropout=0.5)
+        self.up2 = WideUNetUp(240, 96, kernel_size=4, stride=2, padding=1)
+        self.up3 = WideUNetUp(192, 48, kernel_size=4, stride=2, padding=(0, 1, 1))
+        self.up4 = WideUNetUp(96, 32, kernel_size=4, stride=2)
+        self.up5 = UNetUp(64, 16)
 
         self.final = nn.Sequential(
-            nn.Conv3d(20, 1, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
             nn.Tanh(),
         )
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
-        # noise = torch.normal(0, torch.std(x)/2, list(x.size()), device=torch.device('cuda'), requires_grad=True)
+        noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
 
-        d1 = self.down1(x)# +noise)
+        d1 = self.down1(x +noise)
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        d7 = self.down7(d6)
-        d8 = self.down8(d7)
 
-        u1 = self.up1(d8, d7)
-        u2 = self.up2(u1, d6)
-        u3 = self.up3(u2, d5)
-        u4 = self.up4(u3, d4)
-        u5 = self.up5(u4, d3)
-        u6 = self.up6(u5, d2)
-        u7 = self.up7(u6, d1)
-        u8 = self.final(u7)
-        u9 = nn.functional.interpolate(u8, size=(20, 17, 17), mode=interpolation_mode)
+        u1 = self.up1(d6, d5)
+        u2 = self.up2(u1, d4)
+        u3 = self.up3(u2, d3)
+        u4 = self.up4(u3, d2)
+        u5 = self.up5(u4, d1)
+        u6 = self.final(u5)
+        u7 = nn.functional.interpolate(u6, size=(20, 17, 17), mode=interpolation_mode)
 
-        return u9
+        return u7
+
 
 
 ##############################
@@ -279,10 +272,10 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(2, 24, stride=1,  normalization=False, padding=0),
-            *discriminator_block(24, 48, stride=2, padding=0),
-            *discriminator_block(48, 96, stride=1, padding=0),
-
+            *discriminator_block(2, 16, stride=1,  normalization=False, padding=0),
+            *discriminator_block(16, 32, stride=2, padding=0),
+            *discriminator_block(32, 48, stride=1, padding=0),
+            *discriminator_block(48, 96),
             *discriminator_block(96, 120),
             nn.Conv3d(120, 1, kernel_size=5, stride=1, bias=False, padding=0),
             nn.Sigmoid()

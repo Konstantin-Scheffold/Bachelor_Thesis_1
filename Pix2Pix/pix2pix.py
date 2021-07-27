@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=20, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=4, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
@@ -34,7 +34,7 @@ opt = parser.parse_args()
 print(opt)
 
 # validation = True
-lambda_pixel = 500  # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 250  # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1  # slows down Discriminator loss to balance Disc and Gen
 patch = (1, 18, 17, 17)  # Calculate output of image discriminator (PatchGAN)
 
@@ -49,12 +49,13 @@ def criterion_pixelwise(output, target):
 
 
 # Loss functions
+
 criterion_GAN = torch.nn.MSELoss()
 # criterion_pixelwise = torch.nn.L1Loss()
 
 
 # Initialize generator and discriminator
-generator = GeneratorUNet()
+generator = FinalUNet()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -68,8 +69,10 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load("CTtoPD/saved_models_MSE_custom_long/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
-    discriminator.load_state_dict(torch.load("CTtoPD/saved_models_MSE_custom_long/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    generator.load_state_dict(torch.load("CTtoPD\saved_models_ideal_reset_disc/%s/generator_%d.pth" %
+                                         (opt.dataset_name, opt.epoch)))
+    discriminator.load_state_dict(torch.load("CTtoPD\saved_models_ideal_reset_disc/%s/discriminator_%d.pth" %
+                                             (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -79,7 +82,7 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.5, patience=700, cooldown=0, verbose=True, min_lr=5*10**-6)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=7500, cooldown=0, verbose=True, min_lr=10**-9)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
@@ -115,8 +118,8 @@ D_accuracy_real, D_accuracy_fake, D_accuracy_fake_img, D_accuracy_real_img = [],
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
-    # if epoch == 31 or epoch == 45:
-    #    discriminator.apply(weights_init_normal)
+    if epoch == 14:
+        discriminator.apply(weights_init_normal)
 
     for i, batch in enumerate(dataloader):
 
@@ -173,7 +176,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_D = Loss_D_rate * (loss_real + loss_fake)
         loss_batch_D.append(loss_D.cpu().item())
 
-        #if i % rate_D_G_train == 0:
         loss_D.backward()
         optimizer_D.step()
 
@@ -217,7 +219,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_D_val = Loss_D_rate * (loss_real_val + loss_fake_val)
         loss_batch_D_val.append(loss_D_val.item())
 
-
         # --------------
         #  Log Progress
         # --------------
@@ -248,7 +249,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 75 == 0 and len(loss_batch_D) > 2:
+        if i % 100 == 0 and len(loss_batch_D) > 2:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -266,7 +267,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 150 == 0 and len(loss_steps_D) > 2:
+        if i % 300 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(18, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -320,7 +321,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             plt.subplot(2, 6, 12)
             plt.imshow(fake_PD_val[:, :, int(np.size(fake_PD_val, 2) / 2)])
 
-            if epoch == opt.n_epochs:
+            if epoch == (opt.n_epochs-1):
                 plt.savefig('Final_run_UNET.png')
             plt.show()
 
@@ -328,3 +329,4 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Save model checkpoints
         torch.save(generator.state_dict(), "CTtoPD/saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
         torch.save(discriminator.state_dict(), "CTtoPD/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+
