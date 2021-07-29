@@ -2,21 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from Managing_data.Read_dicom import Data_PD
 from Managing_data.Def_functions import make_a_mesh
-from models import *
+from models_PD_to_CT import *
 from datasets import *
 from torch.utils.data import DataLoader
 
 
 print_3d_file = True
 print_cross_sections = True
-number_check = False
-name = 'ideal_MSE_L1'
+number_check = True
+name = 'ideal'
 
 
 Tensor = torch.FloatTensor
 
-generator = FinalUNet()
-generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\saved_models\facades\generator_8.pth', map_location=torch.device('cpu')))
+generator = FinalUNet_long()
+generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\saved_models_ideal_small_patch\facades\generator_14.pth', map_location=torch.device('cpu')))
 
 if print_cross_sections or print_3d_file:
     val_dataloader = DataLoader(
@@ -32,17 +32,17 @@ if print_cross_sections or print_3d_file:
     real_PD_batch = real_PD.squeeze().detach().numpy()
     real_CT_batch = real_CT.squeeze().detach().numpy()
 
-for i in range(15):
-
+for i in range(7):
+    print(i)
     if print_3d_file:
         fake_PD = fake_PD_batch[i]
         real_PD = real_PD_batch[i]
         real_CT = real_CT_batch[i]
         Data_PD.data = np.array(list(real_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data))
 
         Data_PD.data = np.array(list(fake_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.1)#-0.1)
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data) - 0.1)
 
 
     if print_cross_sections:
@@ -90,7 +90,7 @@ for i in range(15):
         plt.subplot(3, 3, 9)
         plt.ylabel('generated')
         plt.imshow(fake_PD[:, :, int(np.size(fake_PD, 2)/2)])
-        plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_MSE_L1\{}_{}'.format(name, i))
+        plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_{}'.format(name, i))
         #plt.show()
 
 if number_check:

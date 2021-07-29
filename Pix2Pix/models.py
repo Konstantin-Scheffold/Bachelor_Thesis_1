@@ -276,9 +276,9 @@ class FinalUNet_long(nn.Module):
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
-        noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
+        #noise = torch.normal(0, torch.std(x)/4, list(x.size()), device=torch.device('cuda'), requires_grad=True)
 
-        d1 = self.down0_5(x +noise)
+        d1 = self.down0_5(x)# +noise)
         d2 = self.down1(d1)
         d3 = self.down2(d2)
         d4 = self.down3(d3)
@@ -315,9 +315,9 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(2, 16, stride=1,  normalization=False, padding=0),
-            *discriminator_block(16, 32, stride=2, padding=0),
-            *discriminator_block(32, 48, stride=1, padding=0),
+            *discriminator_block(2, 16, stride=1,  normalization=False),
+            *discriminator_block(16, 32, stride=2),
+            *discriminator_block(32, 48),
             *discriminator_block(48, 96),
             *discriminator_block(96, 120),
             nn.Conv3d(120, 1, kernel_size=5, stride=1, bias=False, padding=0),
