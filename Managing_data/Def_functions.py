@@ -1,4 +1,3 @@
-import pytorch
 import trimesh
 from skimage import measure
 import numpy as np

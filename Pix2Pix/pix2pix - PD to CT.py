@@ -24,9 +24,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
-parser.add_argument("--n_epochs", type=int, default=25, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=15, help="number of epochs of training")
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=16, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -42,9 +42,9 @@ opt = parser.parse_args()
 print(opt)
 
 #validation = True
-lambda_pixel = 3 # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 0.5 # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
-patch = (1, 19, 18, 18)
+patch = (1, 9 , 8, 8)
 
 os.makedirs("PDtoCT/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
@@ -58,7 +58,7 @@ cuda = True if torch.cuda.is_available() else False
 
 # Loss functions
 criterion_GAN = torch.nn.MSELoss()
-criterion_pixelwise = torch.nn.L1Loss()
+criterion_pixelwise = torch.nn.MSELoss()
 
 # Initialize generator and discriminator
 generator = GeneratorWideUNet()
@@ -86,7 +86,7 @@ else:
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=350, cooldown=0, verbose=True, min_lr=10**-8)
+scheduler_G = ReduceLROnPlateau(optimizer_G, 'min', factor=0.2, patience=200, cooldown=0, verbose=True, min_lr=10**-8)
 # scheduler_D = ReduceLROnPlateau(optimizer_D, 'min', factor = 0.4, patience =  500,
 # cooldown=0, verbose=True, min_lr=10**-8)
 
@@ -235,7 +235,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         time_left_accumulate.append(datetime.timedelta(seconds=batches_left * (time.time() - prev_time)))
         prev_time = time.time()
 
-        if i % 50 == 0:
+        if i % 20 == 0:
             time_left = np.mean(time_left_accumulate)
             time_left_accumulate = []
 
@@ -253,7 +253,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             )
         )
 
-        if i % 50 == 0:
+        if i % 10 == 0:
             # plot the loss curves
             loss_steps_D.append(np.mean(loss_batch_D)/Loss_D_rate)
             loss_steps_G.append(np.mean(loss_batch_G))
@@ -271,7 +271,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             D_accuracy_fake_img.append(np.mean(D_accuracy_fake))
             D_accuracy_real, D_accuracy_fake = [], []
 
-        if i % 100 == 0 and len(loss_steps_D) > 2:
+        if i % 50 == 0 and len(loss_steps_D) > 2:
             plt.figure(figsize=(14, 8))
             # plot Loss curves
             plt.subplot(2, 6, (1, 3))
@@ -328,5 +328,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), "PDtoCT/saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
-        torch.save(discriminator.state_dict(), "PDtoCT/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(generator.state_dict(), "PDtoCT/saved_models_WideUNet/%s/generator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(discriminator.state_dict(), "PDtoCT/saved_models_WideUNet/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))

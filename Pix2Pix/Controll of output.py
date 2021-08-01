@@ -2,21 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from Managing_data.Read_dicom import Data_PD
 from Managing_data.Def_functions import make_a_mesh
-from models_PD_to_CT import *
+from models import *
 from datasets import *
 from torch.utils.data import DataLoader
 
 
 print_3d_file = True
-print_cross_sections = True
-number_check = True
-name = 'ideal'
+print_cross_sections = False
+number_check = False
+name = 'UNet'
 
 
 Tensor = torch.FloatTensor
 
-generator = FinalUNet_long()
-generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\saved_models_ideal_small_patch\facades\generator_14.pth', map_location=torch.device('cpu')))
+generator = GeneratorUNet()
+generator.load_state_dict(torch.load(r'C:\Users\Konra\PycharmProjects\Bachelor_Thesis\Pix2Pix\CTtoPD\used\saved_models_UNet_final\facades\generator_19.pth', map_location=torch.device('cpu')))
 
 if print_cross_sections or print_3d_file:
     val_dataloader = DataLoader(
@@ -32,17 +32,16 @@ if print_cross_sections or print_3d_file:
     real_PD_batch = real_PD.squeeze().detach().numpy()
     real_CT_batch = real_CT.squeeze().detach().numpy()
 
-for i in range(7):
-    print(i)
+for i in range(15):
     if print_3d_file:
         fake_PD = fake_PD_batch[i]
         real_PD = real_PD_batch[i]
         real_CT = real_CT_batch[i]
         Data_PD.data = np.array(list(real_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data))
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\test\{}_real_{}.ply'.format(name, i), np.mean(Data_PD.data))
 
         Data_PD.data = np.array(list(fake_PD), dtype=float)
-        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data) - 0.1)
+        make_a_mesh(Data_PD, r'C:\Users\Konra\OneDrive\Desktop\photos\test\{}_fake_{}.ply'.format(name, i), np.mean(Data_PD.data)-0.2)
 
 
     if print_cross_sections:
@@ -90,14 +89,14 @@ for i in range(7):
         plt.subplot(3, 3, 9)
         plt.ylabel('generated')
         plt.imshow(fake_PD[:, :, int(np.size(fake_PD, 2)/2)])
-        plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\ideal_small_patch\{}_{}'.format(name, i))
+        plt.savefig(r'C:\Users\Konra\OneDrive\Desktop\photos\test\{}_{}'.format(name, i))
         #plt.show()
 
 if number_check:
 
     val_dataloader = DataLoader(
         ImageDataset("../Data/Dicom_Data_edited/val", transforms_=[transforms.ToTensor()]),
-        batch_size=50,
+        batch_size=500,
         shuffle=True,
     )
 
@@ -110,11 +109,11 @@ if number_check:
     mean_linear = list([])
     mean_cube = list([])
 
-    for i in range(50):
+    for i in range(500):
         fake_PD = fake_PD_batch[i]
         real_PD = real_PD_batch[i]
         real_CT = real_CT_batch[i]
-
+        print(i)
         mean_linear.append(np.mean(np.abs(fake_PD - real_PD)))
         mean_cube.append(np.mean(np.abs(fake_PD - real_PD)**3))
 

@@ -167,7 +167,7 @@ class GeneratorWideUNet(nn.Module):
         self.down2 = WideUNetDown(24, 48, kernel_size=4, stride=2)
         self.down3 = WideUNetDown(48, 96, kernel_size=4, stride=2)
         self.down4 = WideUNetDown(96, 96, dropout=0.5)
-        self.down5 = UNetDown(96, 96, dropout=0.5, normalize=False)
+        self.down5 = WideUNetDown(96, 96, dropout=0.5, normalize=False)
         # self.down6 = WideUNetDown(96, 192, dropout=0.5, normalize=False, kernel_size=3, stride=1)
 
         # self.up1 = WideUNetUp(96, 96, dropout=0.5, kernel_size=3, stride=1)
