@@ -42,9 +42,9 @@ opt = parser.parse_args()
 print(opt)
 
 #validation = True
-lambda_pixel = 0.5 # Loss weight of L1 pixel-wise loss between translated image and real image
+lambda_pixel = 5 # Loss weight of L1 pixel-wise loss between translated image and real image
 Loss_D_rate = 1 # slows down Discriminator loss to balance Disc and Gen
-patch = (1, 9 , 8, 8)
+patch = (1, 20, 18, 18)
 
 os.makedirs("PDtoCT/saved_models/%s" % opt.dataset_name, exist_ok=True)
 
@@ -61,7 +61,7 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_pixelwise = torch.nn.MSELoss()
 
 # Initialize generator and discriminator
-generator = GeneratorWideUNet()
+generator = FinalUNet_long()
 discriminator = Discriminator()
 
 # Tensor type - here the type of Tensor is set. It needs to be done as well in the weight init method
@@ -328,5 +328,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), "PDtoCT/saved_models_WideUNet/%s/generator_%d.pth" % (opt.dataset_name, epoch))
-        torch.save(discriminator.state_dict(), "PDtoCT/saved_models_WideUNet/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(generator.state_dict(), "PDtoCT/saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(discriminator.state_dict(), "PDtoCT/saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
